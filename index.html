@@ -174,12 +174,14 @@
 <!-- OrbitControls -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
 <script>
 // ─────────────────────────────────────────────
 //  CONFIG — tweak these values freely
 // ─────────────────────────────────────────────
 const CONFIG = {
-  glbPath: 'musicbox.glb',
+  glbPath: './musicbox.glb',
 
   // Camera position (where it starts)
   cameraDistance: 5,
@@ -289,21 +291,9 @@ async function loadGLB(url) {
   if (!jsonChunk) throw new Error('No JSON chunk in GLB');
 
   return new Promise((resolve, reject) => {
-    if (window.THREE_GLTFLoader) {
-      const loader = new window.THREE_GLTFLoader();
-      loader.load(url, resolve, undefined, reject);
-      return;
-    }
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
-    s.onload = () => {
-      window.THREE_GLTFLoader = THREE.GLTFLoader;
-      const loader = new THREE.GLTFLoader();
-      loader.load(url, resolve, undefined, reject);
-    };
-    s.onerror = () => reject(new Error('Could not load GLTFLoader addon'));
-    document.head.appendChild(s);
-  });
+  const loader = new THREE.GLTFLoader();
+  loader.load(url, resolve, undefined, reject);
+});
 }
 
 // ─────────────────────────────────────────────
