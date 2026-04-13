@@ -284,11 +284,11 @@ async function ensureAudioContext() {
 
   await synth.soundBankManager.addSoundBank(window._sf2Buffer, 'minecraft');
 
-  // Apply any volume the user set before audio context existed
-  synth.masterVolume = pendingVolume;
+  // Apply volume that may have been set before audio context existed
+  synth.setMasterParameter("masterGain", pendingVolume);
 
   seq = new Sequencer(synth);
-  seq.loop = false;   // let songs finish naturally; seek loop polls isFinished
+  seq.loop = false;
 
   setStatus('Ready');
 }
@@ -313,7 +313,7 @@ async function togglePlay() {
     }
     seq.play();
     playing = true;
-    ui.play.innerHTML = '&#9646;&#9646;';
+    ui.play.innerHTML = '&#10074;&#10074;';
     setStatus('Playing');
     if (window.onMusicPlay) window.onMusicPlay();
   }
@@ -381,7 +381,7 @@ function shuffleTrack() {
 
 function setVolume(v) {
   pendingVolume = v;
-  if (synth) synth.masterVolume = v;
+  if (synth) synth.setMasterParameter("masterGain", v);
 }
 
 function updateTrackName(index) {
@@ -401,12 +401,14 @@ function startSeekLoop() {
   function tick() {
     if (!seq || !playing) { seekLoopRunning = false; return; }
 
-    // Auto-advance when song finishes naturally
+    // Auto-advance when song finishes naturally — always autoPlay the next track
     if (seq.isFinished) {
       playing = false;
       ui.play.innerHTML = '&#9654;';
       seekLoopRunning = false;
-      nextTrack();
+      if (window.onMusicEnd) window.onMusicEnd();
+      const idx = (current + 1) % tracks.length;
+      loadTrack(idx, true);   // true = always autoPlay on natural song end
       return;
     }
 
