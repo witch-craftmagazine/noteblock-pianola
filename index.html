@@ -4,9 +4,45 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Music Box</title>
+  
+  <head>
+  <!-- Primary Meta Tags -->
+  <title>Cafe Amalfi</title>
+  <meta name="title" content="Cafe Amalfi" />
+  <meta name="description" content="🎹🍺 where everybody knows your name 🎵🎶" />
 
-  <!-- Goal 4a: Favicon -->
-  <link rel="icon" type="image/png" href="./noteblock.png"/>
+  <!-- Theme color (helps Discord embed accent bar + some platforms) -->
+  <meta name="theme-color" content="#2b2b2b" />
+
+  <!-- Open Graph / Facebook / Discord -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://witch-craftmagazine.github.io/noteblock-pianola/" />
+  <meta property="og:site_name" content="Noteblock Pianola" />
+  <meta property="og:title" content="Cafe Amalfi" />
+  <meta property="og:description" content="🎹🍺 where everybody knows your name 🎵🎶" />
+
+  <!-- IMPORTANT: Discord prefers absolute, cache-busted image URLs when updating -->
+  <meta property="og:image" content="https://witch-craftmagazine.github.io/noteblock-pianola/musicbox.webp?v=1" />
+  <meta property="og:image:secure_url" content="https://witch-craftmagazine.github.io/noteblock-pianola/musicbox.webp?v=1" />
+  <meta property="og:image:type" content="image/webp" />
+
+  <!-- Strongly recommended for Discord embed quality -->
+  <meta property="og:image:width" content="2000" />
+  <meta property="og:image:height" content="1138" />
+
+  <!-- Twitter (still used by some preview fallbacks) -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://witch-craftmagazine.github.io/noteblock-pianola/" />
+  <meta name="twitter:title" content="Cafe Amalfi" />
+  <meta name="twitter:description" content="🎹🍺 where everybody knows your name 🎵🎶" />
+  <meta name="twitter:image" content="https://witch-craftmagazine.github.io/noteblock-pianola/musicbox.webp?v=1" />
+
+  <!-- Favicon (browser tab icon only — NOT used in OG embeds) -->
+  <link rel="icon" type="image/png" href="./noteblock.png" />
+
+  <!-- Optional: helps some platforms pick a better icon -->
+  <link rel="apple-touch-icon" href="./noteblock.png" />
+
 
   <!--
     Import map: teaches the browser how to resolve the bare "spessasynth_core"
@@ -166,7 +202,7 @@
   <!-- Note particle overlay -->
   <canvas id="note-canvas"></canvas>
 
-  <div id="wind-hint">⟵ Drag the crank to wind up</div>
+  <div id="wind-hint">↻ Drag the crank in a clockwise circle to wind up</div>
 
   <div id="loading">
     <div class="spinner"></div>
@@ -309,29 +345,96 @@ async function loadGLB(url) {
 //  ANIMATION SYSTEM
 // ─────────────────────────────────────────────
 let mixer = null;
+
+// Tracks whether the close animation is currently mid-play.
+// Prevents open from firing before close finishes.
+let _lidClosing = false;
+// Tracks whether the open animation is currently mid-play.
+// Used to guard lid state checks and prevent redundant open calls.
+let _lidOpening = false;
+// If open was requested while close was still playing, queue it.
+let _openQueued = false;
+
 window.musicBoxAnimations = {
   crank_spin: null,
   open:       null,
   close:      null,
+  idle:       null,
 
   play(name) {
     const action = this[name];
-    if (!action) return;
+    if (!action) {
+      console.warn(`[MusicBox] ⚠ Animation '${name}' not found on mixer — check clip names in GLB.`);
+      return;
+    }
+
+    const clipDuration = action.getClip().duration;
+    console.log(`[MusicBox] ▶ Playing '${name}' | clip duration: ${clipDuration.toFixed(3)}s`);
+
+    // Stop any animations that would fight the lid pose.
+    // A clamped or paused action still contributes its pose to the mixer,
+    // so we must fully stop() them — not just pause — before playing close/open.
+    if (name === 'close') {
+      if (this.open)  { console.log('[MusicBox] Stopping open before close.');  this.open.stop();  }
+      if (this.idle)  { console.log('[MusicBox] Stopping idle before close.');  this.idle.stop();  }
+      _lidClosing = true;
+      _lidOpening = false;   // open was interrupted — clear its flag
+      _openQueued = false;
+    }
+    if (name === 'open') {
+      if (_lidClosing) {
+        console.log('[MusicBox] Close still running — queuing open until it finishes.');
+        _openQueued = true;
+        return;
+      }
+      if (this.close) { console.log('[MusicBox] Stopping close before open.'); this.close.stop(); }
+      _lidOpening = true;
+    }
+
+    // Three.js r128: reset() alone doesn't always re-enable a finished action.
+    // Explicitly set enabled = true after reset() to guarantee it runs.
+    action.stop();
     action.reset();
+    action.enabled = true;
     action.clampWhenFinished = true;
     action.setLoop(THREE.LoopOnce, 1);
     action.play();
+
+    console.log(`[MusicBox] Action '${name}' isRunning: ${action.isRunning()}, time: ${action.time.toFixed(3)}`);
   },
 
   setCrankSpinning(on) {
-    const action = this.crank_spin;
-    if (!action) return;
+    const crank = this.crank_spin;
+    const idle  = this.idle;
     if (on) {
-      action.paused = false;
-      action.setLoop(THREE.LoopRepeat, Infinity);
-      action.play();
+      if (crank) {
+        // Resume path: action was playing and then paused (enabled stays true, time is preserved).
+        // Fresh path:  action was stopped (enabled=false) or never played — needs full reset.
+        if (crank.paused && crank.enabled) {
+          crank.paused = false;
+          console.log('[MusicBox] crank_spin resumed from pause (position preserved).');
+        } else {
+          crank.reset();
+          crank.enabled = true;
+          crank.paused  = false;
+          crank.setLoop(THREE.LoopRepeat, Infinity);
+          crank.play();
+          console.log('[MusicBox] crank_spin started fresh.');
+        }
+      }
+      if (idle) {
+        idle.stop();
+        idle.reset();
+        idle.enabled = true;
+        idle.setLoop(THREE.LoopRepeat, Infinity);
+        idle.play();
+        console.log('[MusicBox] idle started.');
+      }
     } else {
-      action.paused = true;
+      // Pause rather than stop so the handle stays at its current pose
+      // and position is preserved for the next resume.
+      if (crank) { crank.paused = true;  console.log('[MusicBox] crank_spin paused (position held).'); }
+      if (idle)  { idle.stop();          console.log('[MusicBox] idle stopped.'); }
     }
   },
 };
@@ -366,13 +469,62 @@ window.musicBoxAnimations = {
     // Animations
     if (gltf.animations && gltf.animations.length > 0) {
       mixer = new THREE.AnimationMixer(model);
+
+      console.log('[MusicBox] Available animation clips:', gltf.animations.map(c => `"${c.name}" (${c.duration.toFixed(3)}s)`).join(', '));
+
       gltf.animations.forEach(clip => {
         const action = mixer.clipAction(clip);
         const key    = clip.name.toLowerCase().replace(/\s+/g, '_');
         if (window.musicBoxAnimations.hasOwnProperty(key)) {
           window.musicBoxAnimations[key] = action;
+          console.log(`[MusicBox] Registered animation '${key}' -> clip "${clip.name}" (${clip.duration.toFixed(3)}s)`);
+        } else {
+          console.log(`[MusicBox] Skipped clip "${clip.name}" (key "${key}" not in animation map)`);
         }
       });
+
+      // Strip lid tracks from looping animations so they can't fight open/close.
+      // A looping action that includes lid keyframes holds the lid at whatever
+      // pose those keyframes define, blending against and defeating close/open.
+      const LID_PATTERN = /lid|top|cover/i;
+      ['crank_spin', 'idle'].forEach(key => {
+        const clip = window.musicBoxAnimations[key]?.getClip();
+        if (!clip) return;
+        const before = clip.tracks.length;
+        clip.tracks = clip.tracks.filter(t => !LID_PATTERN.test(t.name));
+        const removed = before - clip.tracks.length;
+        if (removed > 0) {
+          console.log(`[MusicBox] Stripped ${removed} lid track(s) from '${key}'.`);
+        } else {
+          console.log(`[MusicBox] No lid tracks found in '${key}' (pattern: ${LID_PATTERN}).`);
+        }
+      });
+      mixer.addEventListener('finished', (e) => {
+        const clipName = e.action.getClip().name;
+        const key      = clipName.toLowerCase().replace(/\s+/g, '_');
+        console.log(`[MusicBox] FINISHED: "${clipName}" | time: ${e.action.time.toFixed(3)}s`);
+
+        if (key === 'close') {
+          _lidClosing = false;
+          console.log('[MusicBox] Lid is now fully closed and held.');
+          if (_openQueued) {
+            _openQueued = false;
+            console.log('[MusicBox] Playing queued open animation.');
+            window.musicBoxAnimations.play('open');
+          }
+        }
+
+        if (key === 'open') {
+          _lidOpening = false;
+          // Crank spin was already started in onMusicPlay — nothing more to do here.
+          // _pendingMusicStart is kept cleared so no stale state accumulates.
+          window._pendingMusicStart = false;
+          console.log('[MusicBox] Lid fully open. Crank should already be spinning.');
+        }
+      });
+
+    } else {
+      console.warn('[MusicBox] No animations found in GLB. Lid and crank will not animate.');
     }
 
     loading.classList.add('hidden');
@@ -396,7 +548,9 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
-  if (mixer) mixer.update(delta);
+  // While the user is manually scrubbing the crank, pass 0 so the mixer
+  // renders the current pose without advancing time and overwriting action.time.
+  if (mixer) mixer.update(isDragging ? 0 : delta);
   controls.update();
   renderer.render(scene, camera);
 }
@@ -405,13 +559,14 @@ animate();
 // ─────────────────────────────────────────────
 //  INTERACTION STATE
 // ─────────────────────────────────────────────
-let isDragging  = false;
-let lastMouseX  = 0;
-let windAccum   = 0;
-let hasPlayed   = false;
-let lidOpen     = false;
-let crankMeshes = [];
-let lidMeshes   = [];
+let isDragging   = false;
+let lastMouseX   = 0;
+let lastMouseY   = 0;
+let windAccum    = 0;
+let hasPlayed    = false;
+let lidOpen      = false;
+let crankMeshes  = [];
+let lidMeshes    = [];
 
 // ── Raycaster for mesh hit testing ────────────
 const raycaster = new THREE.Raycaster();
@@ -440,27 +595,43 @@ function toggleLid() {
 // ── Crank drag ────────────────────────────────
 canvas.addEventListener('mousemove', e => {
   if (isDragging) {
-    const dx   = e.clientX - lastMouseX;
+    const dx = e.clientX - lastMouseX;
+    const dy = e.clientY - lastMouseY;
     lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
 
     const action = window.musicBoxAnimations.crank_spin;
     if (action) {
       const duration  = action.getClip().duration;
       const timePerPx = duration / CONFIG.DRAG_PX_PER_REV;
-      const forwardDx = Math.max(0, -dx);
-      windAccum += forwardDx;
-      action.time   = (action.time + forwardDx * timePerPx) % duration;
+
+      // Bug 3: accept up OR down drag on the vertical axis (abs), 
+      // and left stroke on horizontal. Use dominant axis to avoid double-counting.
+      const vertDelta = Math.abs(dy);
+      const horizDelta = Math.max(0, -dx); // only leftward counts horizontally
+      const forwardDelta = vertDelta >= Math.abs(dx) ? vertDelta : horizDelta;
+
+      windAccum += forwardDelta;
+
+      // Bug 2: ensure action is initialized in the mixer before scrubbing.
+      // An action that was never play()'d has no mixer binding and setting
+      // .time on it does nothing visible. Play+pause to register it.
+      if (!action.isRunning() && !action._initialized) {
+        action.reset();
+        action.enabled = true;
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.play();
+        action.paused = true;
+        action._initialized = true;
+        mixer && mixer.update(0);
+      }
+
+      action.time   = (action.time + forwardDelta * timePerPx) % duration;
       action.paused = true;
       mixer && mixer.update(0);
     }
 
     if (window.onCrankTurn) window.onCrankTurn(dx);
-
-    const windsCompleted = windAccum / CONFIG.DRAG_PX_PER_REV;
-    if (windsCompleted >= CONFIG.WINDS_TO_PLAY && !hasPlayed) {
-      hasPlayed = true;
-      if (window.musicPlayer) window.musicPlayer.play();
-    }
 
   } else {
     const overCrank = hitTest(e, crankMeshes);
@@ -474,19 +645,21 @@ canvas.addEventListener('mousedown', e => {
   const overLid   = hitTest(e, lidMeshes);
 
   if (overCrank) {
-    isDragging           = true;
-    lastMouseX           = e.clientX;
-    controls.enabled     = false;
-    canvas.style.cursor  = 'grabbing';
+    isDragging          = true;
+    lastMouseX          = e.clientX;
+    lastMouseY          = e.clientY;
+    controls.enabled    = false;
+    canvas.style.cursor = 'grabbing';
     const action = window.musicBoxAnimations.crank_spin;
     if (action) action.paused = true;
-    // Pause music on grab so user must re-wind to play
+    const idleAction = window.musicBoxAnimations.idle;
+    if (idleAction) idleAction.stop();
     if (window.musicPlayer && window.musicPlayer.isPlaying()) {
       window.musicPlayer.pause();
     }
-    // Reset wind accumulator so user has to wind from scratch
     windAccum = 0;
     hasPlayed = false;
+    console.log(`[MusicBox] mousedown on crank | was playing: ${window.musicPlayer?.isPlaying()} | lidOpen: ${lidOpen} | windAccum+hasPlayed reset.`);
   } else if (overLid) {
     toggleLid();
   }
@@ -497,8 +670,18 @@ window.addEventListener('mouseup', () => {
   isDragging          = false;
   canvas.style.cursor = 'default';
 
-  if (window.musicPlayer && window.musicPlayer.isPlaying()) {
-    window.musicBoxAnimations.setCrankSpinning(true);
+  // #1: Trigger play only when the user releases the crank, not during drag
+  const windsCompleted = windAccum / CONFIG.DRAG_PX_PER_REV;
+  console.log(`[MusicBox] mouseup | winds: ${windsCompleted.toFixed(2)} / ${CONFIG.WINDS_TO_PLAY} | hasPlayed: ${hasPlayed} | lidOpen: ${lidOpen} | _lidOpening: ${_lidOpening} | playing: ${window.musicPlayer?.isPlaying()}`);
+
+  if (windsCompleted >= CONFIG.WINDS_TO_PLAY && !hasPlayed) {
+    hasPlayed = true;
+    console.log('[MusicBox] Wind threshold reached — calling musicPlayer.play(). Lid/crank will sync via onMusicPlay.');
+    if (window.musicPlayer) window.musicPlayer.play();
+  } else {
+    // Do NOT call setCrankSpinning here — that is onMusicPlay's job.
+    // Calling it here risks fighting the lid/crank state managed by the callbacks.
+    console.log(`[MusicBox] mouseup: no action (winds ${windsCompleted.toFixed(2)} < ${CONFIG.WINDS_TO_PLAY} or hasPlayed=${hasPlayed}).`);
   }
 });
 
@@ -525,23 +708,49 @@ window._registerLidMeshes = function(root) {
 //  MUSIC CALLBACKS — Goal 3: Lid + crank sync
 // ─────────────────────────────────────────────
 window.onMusicPlay = () => {
-  window.musicBoxAnimations.setCrankSpinning(true);
-  // Open lid if still closed (e.g. player play button pressed directly)
+  console.log(`[MusicBox] onMusicPlay | lidOpen: ${lidOpen} | _lidOpening: ${_lidOpening} | _lidClosing: ${_lidClosing}`);
+
+  // Open the lid if it isn't already (animation runs in parallel with music + crank).
   if (!lidOpen) {
-    window.musicBoxAnimations.play('open');
     lidOpen = true;
+    window.musicBoxAnimations.play('open');
+    console.log('[MusicBox] onMusicPlay: lid was closed → opening now (parallel with music + crank).');
+  } else {
+    console.log('[MusicBox] onMusicPlay: lid already open.');
   }
+
+  // Start crank immediately — don't wait for the lid animation to finish.
+  // Music and crank are tightly coupled; the lid opening is a parallel flourish.
+  window.musicBoxAnimations.setCrankSpinning(true);
+  console.log('[MusicBox] onMusicPlay: crank spin started.');
 };
 
 window.onMusicPause = () => {
-  window.musicBoxAnimations.setCrankSpinning(false);
-  windAccum = 0;
-  hasPlayed = false;
-  // Close lid if still open
+  console.log(`[MusicBox] onMusicPause | lidOpen: ${lidOpen} | _lidOpening: ${_lidOpening}`);
+
+  // #2: Stop the crank spinning animation but leave it at its current pose
+  // by pausing instead of stopping, so the handle stays put visually.
+  const crank = window.musicBoxAnimations.crank_spin;
+  if (crank) { crank.paused = true; }
+  const idle = window.musicBoxAnimations.idle;
+  if (idle)  { idle.stop(); }
+
+  // Close lid (if open or mid-open — play('close') handles the queue guard internally).
   if (lidOpen) {
     window.musicBoxAnimations.play('close');
     lidOpen = false;
+    console.log('[MusicBox] onMusicPause: closing lid.');
   }
+};
+
+// Bug #5: handled in script.js — song end now always autoplays next track.
+// onMusicEnd resets local wind state so the crank is ready for the next song.
+window.onMusicEnd = () => {
+  console.log('[MusicBox] onMusicEnd | resetting windAccum, hasPlayed. Stopping crank. script.js will load next track and fire onMusicPlay.');
+  windAccum = 0;
+  hasPlayed = false;
+  // Stop crank so it restarts cleanly when next song's onMusicPlay fires
+  window.musicBoxAnimations.setCrankSpinning(false);
 };
 
 // ─────────────────────────────────────────────
@@ -696,6 +905,7 @@ window.addEventListener('resize', () => {
   // Chain onto existing music callbacks
   const _origPlay  = window.onMusicPlay;
   const _origPause = window.onMusicPause;
+  const _origEnd   = window.onMusicEnd;
 
   window.onMusicPlay = () => {
     isPlaying = true;
@@ -705,6 +915,12 @@ window.addEventListener('resize', () => {
   window.onMusicPause = () => {
     isPlaying = false;
     if (_origPause) _origPause();
+  };
+
+  // Bug #5: when a song ends, reset state so the next song auto-starts cleanly
+  window.onMusicEnd = () => {
+    isPlaying = false;
+    if (_origEnd) _origEnd();
   };
 })();
 </script>
