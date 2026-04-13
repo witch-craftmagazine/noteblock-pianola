@@ -5,10 +5,10 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { Sequencer, WorkletSynthesizer } 
-from "https://cdn.jsdelivr.net/npm/spessasynth_lib@4.2.11/dist/spessasynth_lib.es.js";
+from "https://cdn.jsdelivr.net/npm/spessasynth_lib@4.2.12/+esm";
 
 const SF2_PATH     = './minecraft2.sf2';
-const WORKLET_PATH = "https://cdn.jsdelivr.net/npm/spessasynth_lib@4.2.11/dist/spessasynth_processor.min.js";
+const WORKLET_PATH = "./spessasynth_processor.min.js";
 const LIST_PATH    = './midilist.json';
 
 // ── State ──────────────────────────────────────────────────────────
