@@ -8,6 +8,19 @@
   <!-- Goal 4a: Favicon -->
   <link rel="icon" type="image/png" href="./noteblock.png"/>
 
+  <!--
+    Import map: teaches the browser how to resolve the bare "spessasynth_core"
+    specifier used inside lib/spessasynth_lib.js.
+    Must appear before any <script type="module">.
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "spessasynth_core": "./lib/spessasynth_core.js"
+    }
+  }
+  </script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -278,200 +291,150 @@ async function loadGLB(url) {
   while (offset < length) {
     const chunkLen  = view.getUint32(offset,     true);
     const chunkType = view.getUint32(offset + 4, true);
-    offset += 8;
-    if (chunkType === 0x4E4F534A) {
-      const bytes = new Uint8Array(buffer, offset, chunkLen);
-      jsonChunk   = JSON.parse(new TextDecoder().decode(bytes));
-    } else if (chunkType === 0x004E4942) {
-      binChunk = buffer.slice(offset, offset + chunkLen);
-    }
-    offset += chunkLen;
+    const chunkData = buffer.slice(offset + 8, offset + 8 + chunkLen);
+    if (chunkType === 0x4E4F534A) jsonChunk = chunkData;
+    if (chunkType === 0x004E4942) binChunk  = chunkData;
+    offset += 8 + chunkLen;
   }
 
-  if (!jsonChunk) throw new Error('No JSON chunk in GLB');
+  const json = JSON.parse(new TextDecoder().decode(jsonChunk));
+  const loader = new THREE.GLTFLoader();
 
   return new Promise((resolve, reject) => {
-  const loader = new THREE.GLTFLoader();
-  loader.load(url, resolve, undefined, reject);
-});
+    loader.parse(buffer, '', resolve, reject);
+  });
 }
 
 // ─────────────────────────────────────────────
-//  ANIMATION STATE
+//  ANIMATION SYSTEM
 // ─────────────────────────────────────────────
-let mixer      = null;
-let modelRoot  = null;
-let clock      = new THREE.Clock();
-
+let mixer = null;
 window.musicBoxAnimations = {
+  crank_spin: null,
   open:       null,
   close:      null,
-  crank_spin: null,
 
   play(name) {
     const action = this[name];
     if (!action) return;
-
-    // Use enabled=false rather than stop() on the opposing animation.
-    // stop() snaps all bones back to the rest/bind pose before the new
-    // clip starts, which causes the lid to jump position.
-    // enabled=false zeroes the weight contribution without touching bone
-    // transforms, so the incoming clip takes over from wherever the bones
-    // actually are.
-    const opposing = name === 'close' ? this.open : (name === 'open' ? this.close : null);
-    if (opposing) opposing.enabled = false;
-
     action.reset();
-    action.enabled = true;
-    action.setLoop(THREE.LoopOnce, 1);
     action.clampWhenFinished = true;
+    action.setLoop(THREE.LoopOnce, 1);
     action.play();
   },
 
-  setCrankSpinning(active) {
+  setCrankSpinning(on) {
     const action = this.crank_spin;
     if (!action) return;
-    if (active) {
+    if (on) {
       action.paused = false;
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.play();
     } else {
       action.paused = true;
     }
-  }
+  },
 };
-
-// ─────────────────────────────────────────────
-//  LID STATE  — Goal 3: Fixed open/close/music sync
-// ─────────────────────────────────────────────
-let lidOpen   = false;
-let lidMeshes = [];
-
-function toggleLid() {
-  if (lidOpen) {
-    // Closing: play close anim first, then pause music
-    window.musicBoxAnimations.play('close');
-    lidOpen = false;
-    if (window.musicPlayer && window.musicPlayer.isPlaying()) {
-      window.musicPlayer.pause();   // triggers onMusicPause → stops crank
-    }
-  } else {
-    // Opening: play open anim, then start music
-    window.musicBoxAnimations.play('open');
-    lidOpen = true;
-    if (window.musicPlayer) {
-      window.musicPlayer.play();    // triggers onMusicPlay → starts crank
-    }
-  }
-}
 
 // ─────────────────────────────────────────────
 //  LOAD MODEL
 // ─────────────────────────────────────────────
-loadGLB(CONFIG.glbPath).then(gltf => {
-  modelRoot = gltf.scene;
+(async () => {
+  try {
+    const gltf = await loadGLB(CONFIG.glbPath);
+    const model = gltf.scene;
+    scene.add(model);
 
-  const box    = new THREE.Box3().setFromObject(modelRoot);
-  const size   = box.getSize(new THREE.Vector3());
-  const centre = box.getCenter(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const scale  = 2.0 / maxDim;
+    // Center model
+    const box = new THREE.Box3().setFromObject(model);
+    const cen = box.getCenter(new THREE.Vector3());
+    model.position.sub(cen);
+    model.position.y += (box.max.y - box.min.y) / 2;
 
-  modelRoot.scale.setScalar(scale);
-  modelRoot.position.sub(centre.multiplyScalar(scale));
-  modelRoot.position.y += size.y * scale * 0.5;
-
-  modelRoot.traverse(child => {
-    if (child.isMesh) {
-      child.castShadow    = true;
-      child.receiveShadow = true;
-      if (child.material.map) {
-        child.material.map.magFilter = THREE.NearestFilter;
-        child.material.map.minFilter = THREE.NearestFilter;
-      }
-    }
-  });
-
-  scene.add(modelRoot);
-
-  // Register crank & lid meshes
-  window._registerCrankMeshes(modelRoot);
-  window._registerLidMeshes(modelRoot);
-
-  // Set up animation mixer
-  if (gltf.animations && gltf.animations.length > 0) {
-    mixer = new THREE.AnimationMixer(modelRoot);
-
-    gltf.animations.forEach(clip => {
-      const action = mixer.clipAction(clip);
-      const key    = clip.name.toLowerCase().replace(/[\s-]/g, '_');
-
-      if (key === 'open')             window.musicBoxAnimations.open       = action;
-      else if (key === 'close')       window.musicBoxAnimations.close      = action;
-      else if (key.includes('crank')) {
-        window.musicBoxAnimations.crank_spin = action;
-        action.setLoop(THREE.LoopRepeat, Infinity);
-        action.play();
-        action.paused = true;
+    // Shadows
+    model.traverse(child => {
+      if (child.isMesh) {
+        child.castShadow    = true;
+        child.receiveShadow = true;
       }
     });
 
-    console.log('Animations loaded:', gltf.animations.map(a => a.name));
+    // Register interactive meshes
+    window._registerCrankMeshes && window._registerCrankMeshes(model);
+    window._registerLidMeshes   && window._registerLidMeshes(model);
+
+    // Animations
+    if (gltf.animations && gltf.animations.length > 0) {
+      mixer = new THREE.AnimationMixer(model);
+      gltf.animations.forEach(clip => {
+        const action = mixer.clipAction(clip);
+        const key    = clip.name.toLowerCase().replace(/\s+/g, '_');
+        if (window.musicBoxAnimations.hasOwnProperty(key)) {
+          window.musicBoxAnimations[key] = action;
+        }
+      });
+    }
+
+    loading.classList.add('hidden');
+
+    // Show wind hint
+    windHint.classList.add('show');
+    setTimeout(() => windHint.classList.remove('show'), 3000);
+
+  } catch (err) {
+    console.error('GLB load error:', err);
+    loading.classList.add('hidden');
+    errorBox.classList.add('visible');
   }
-
-  loading.classList.add('hidden');
-
-  // Show wind-up hint briefly
-  windHint.classList.add('show');
-  setTimeout(() => windHint.classList.remove('show'), 3500);
-
-  animate();
-
-}).catch(err => {
-  console.error('GLB load error:', err);
-  loading.classList.add('hidden');
-  errorBox.classList.add('visible');
-});
+})();
 
 // ─────────────────────────────────────────────
 //  RENDER LOOP
 // ─────────────────────────────────────────────
+const clock = new THREE.Clock();
+
 function animate() {
   requestAnimationFrame(animate);
-
   const delta = clock.getDelta();
-
   if (mixer) mixer.update(delta);
   controls.update();
   renderer.render(scene, camera);
 }
+animate();
 
 // ─────────────────────────────────────────────
-//  RAYCASTING HELPERS
+//  INTERACTION STATE
 // ─────────────────────────────────────────────
-const raycaster = new THREE.Raycaster();
-let crankMeshes = [];
 let isDragging  = false;
 let lastMouseX  = 0;
-
-// Crank winding accumulator
 let windAccum   = 0;
 let hasPlayed   = false;
+let lidOpen     = false;
+let crankMeshes = [];
+let lidMeshes   = [];
 
-canvas.style.cursor = 'default';
+// ── Raycaster for mesh hit testing ────────────
+const raycaster = new THREE.Raycaster();
+const mouse     = new THREE.Vector2();
 
-function getMouseNDC(e) {
+function hitTest(event, meshes) {
+  if (!meshes.length) return false;
   const rect = canvas.getBoundingClientRect();
-  return new THREE.Vector2(
-    ((e.clientX - rect.left) / rect.width)  *  2 - 1,
-    ((e.clientY - rect.top)  / rect.height) * -2 + 1
-  );
+  mouse.x =  ((event.clientX - rect.left)  / rect.width)  * 2 - 1;
+  mouse.y = -((event.clientY - rect.top)   / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  return raycaster.intersectObjects(meshes, true).length > 0;
 }
 
-function hitTest(e, meshes) {
-  if (!meshes.length) return false;
-  raycaster.setFromCamera(getMouseNDC(e), camera);
-  return raycaster.intersectObjects(meshes, true).length > 0;
+// ── Lid toggle ─────────────────────────────────
+function toggleLid() {
+  if (lidOpen) {
+    window.musicBoxAnimations.play('close');
+    lidOpen = false;
+  } else {
+    window.musicBoxAnimations.play('open');
+    lidOpen = true;
+  }
 }
 
 // ── Crank drag ────────────────────────────────
