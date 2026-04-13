@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { Sequencer, WorkletSynthesizer } 
-from "https://cdn.jsdelivr.net/npm/spessasynth_lib@4.2.12/+esm";
+from "https://cdn.jsdelivr.net/npm/spessasynth_lib@4.2.12/dist/spessasynth_processor.min.js";
 
 const SF2_PATH     = './minecraft2.sf2';
 const WORKLET_PATH = "./spessasynth_processor.min.js";
