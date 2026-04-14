@@ -1,5 +1,9 @@
-This project includes code from spessasynth_lib
-(https://github.com/spessasus/spessasynth_lib)
+This project includes third-party libraries:
 
-Copyright (c) spessasus
-Licensed under the Apache License 2.0
+- spessasynth_lib (https://github.com/spessasus/spessasynth_lib)
+  Copyright (c) spessasus
+  Licensed under the Apache License 2.0
+
+- three.js (https://github.com/mrdoob/three.js)
+  Copyright (c) three.js authors
+  Licensed under the MIT License
