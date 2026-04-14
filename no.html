@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NO</title>
+
+  <meta property="og:title"        content="NO">
+  <meta property="og:description"  content="Found footage">
+  <meta property="og:image"        content="https://witch-craftmagazine.github.io/noteblock-pianola/piano/panorama_1.webp">
+  <meta property="og:url"          content="https://witch-craftmagazine.github.io/noteblock-pianola/no">
+  <meta property="og:type"         content="website">
+
+  <meta name="twitter:card"        content="summary_large_image">
+  <meta name="twitter:title"       content="NO">
+  <meta name="twitter:description" content="Found footage">
+  <meta name="twitter:image"       content="https://witch-craftmagazine.github.io/noteblock-pianola/piano/panorama_1.webp">
+
+  <link rel="preload" href="fonts/craftmine.woff2" as="font" type="font/woff2" crossorigin>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
+    /* ── Page shell: everything outside the 4:3 frame is black ── */
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ── 4:3 CRT frame ── */
+    #crt-frame {
+  position: relative;
+  aspect-ratio: 4 / 3;
+
+  /* shrink available space to create padding */
+  width:  min(calc(100vw - 40px), calc((100vh - 40px) * 4 / 3));
+  height: min(calc(100vh - 40px), calc((100vw - 40px) * 3 / 4));
+
+  overflow: hidden;
+  border-radius: 18px;
+
+  box-shadow:
+    0 0 0 6px #1a1a1a,
+    0 0 0 10px #111,
+    0 0 40px 8px rgba(0,255,80,0.18),
+    inset 0 0 80px 20px rgba(0,0,0,0.55);
+}
+
+    /* Slight screen-curve illusion via radial shadow overlay */
+    #crt-frame::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.55) 100%);
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    /* Stretch the panorama container to fill the 4:3 frame */
+    #panorama-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #panorama-container canvas {
+      width:  100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    /* All overlay layers fill the frame */
+    #cam-tint,
+    #scanlines,
+    #grain,
+    #vignette,
+    #glitch-overlay,
+    #static-burst {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* HUD and controls stay inside the frame */
+    #cam-hud,
+    #cam-timestamp,
+    #toggle-rotation {
+      position: absolute;
+      z-index: 30;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── 4:3 CRT viewport ── -->
+  <div id="crt-frame">
+
+    <div id="panorama-container"></div>
+
+    <!-- Security cam layers -->
+    <div id="cam-tint"></div>
+    <div id="scanlines"></div>
+    <div id="grain"></div>
+    <div id="vignette"></div>
+    <div id="glitch-overlay"></div>
+    <div id="static-burst"></div>
+
+    <!-- HUD -->
+    <div id="cam-hud">
+      <div class="cam-label">
+        <span>CAM-07</span>
+        <span>PIANO</span>
+      </div>
+      <div class="rec-badge">
+        <div class="rec-dot"></div>
+        <span>REC</span>
+      </div>
+    </div>
+
+    <div id="cam-timestamp">--:--:-- ----/--/--</div>
+
+    <!-- Controls -->
+    <button id="toggle-rotation">⏸ PAUSE</button>
+
+  </div><!-- /#crt-frame -->
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    /* ── Three.js panorama setup ── */
+    const scene    = new THREE.Scene();
+    const camera   = new THREE.PerspectiveCamera(75, 4 / 3, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+    const frame = document.getElementById('crt-frame');
+    renderer.setSize(frame.clientWidth, frame.clientHeight);
+    document.getElementById('panorama-container').appendChild(renderer.domElement);
+
+    const loader = new THREE.CubeTextureLoader();
+    scene.background = loader.load([
+      './piano/panorama_2.webp',
+      './piano/panorama_0.webp',
+      './piano/panorama_4.webp',
+      './piano/panorama_5.webp',
+      './piano/panorama_1.webp',
+      './piano/panorama_3.webp'
+    ]);
+
+    /* ── State ── */
+    let yaw = 0, pitch = 0;
+    let autorotate = true;
+    let isDragging = false;
+    let lastX = 0, lastY = 0;
+
+    /* ── Manual drag ── */
+    const canvas = renderer.domElement;
+    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+    window.addEventListener('mouseup',   () => isDragging = false);
+    window.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      yaw   += (e.clientX - lastX) * 0.003;
+      pitch += (e.clientY - lastY) * 0.003;
+      pitch  = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, pitch));
+      lastX = e.clientX; lastY = e.clientY;
+    });
+    canvas.addEventListener('touchstart', e => { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; });
+    window.addEventListener('touchend',   () => isDragging = false);
+    window.addEventListener('touchmove',  e => {
+      if (!isDragging) return;
+      yaw   += (e.touches[0].clientX - lastX) * 0.003;
+      pitch += (e.touches[0].clientY - lastY) * 0.003;
+      pitch  = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, pitch));
+      lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    });
+
+    const rotBtn = document.getElementById('toggle-rotation');
+    rotBtn.addEventListener('click', () => {
+      autorotate = !autorotate;
+      rotBtn.textContent = autorotate ? '⏸ PAUSE' : '▶ RESUME';
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       POSSESSED CAMERA — state machine
+       States: HOLD → CREEP → SNAP → TWITCH (loop)
+    ══════════════════════════════════════════════════════════ */
+    const rnd = (a, b) => Math.random() * (b - a) + a;
+
+    let targetYaw   = 0;
+    let targetPitch = 0;
+    let camSpeed    = 0;          // current lerp factor
+    let holdTimer   = 0;          // frames remaining to hold still
+    let snapFrames  = 0;          // frames of snap remaining
+    let twitchCount = 0;          // pending micro-twitches
+
+    function pickNewTarget() {
+      // Biased: often look toward interesting angles
+      targetYaw   += rnd(-1.8, 1.8);
+      targetPitch  = rnd(-0.4, 0.3);
+    }
+
+    function startHold() {
+      holdTimer  = Math.floor(rnd(40, 180));   // 0.7 – 3 s at 60fps
+      camSpeed   = 0;
+    }
+
+    function startSnap() {
+      pickNewTarget();
+      snapFrames = Math.floor(rnd(6, 22));     // very fast pan
+      camSpeed   = rnd(0.12, 0.28);
+    }
+
+    function startCreep() {
+      pickNewTarget();
+      camSpeed   = rnd(0.004, 0.018);          // slow unsettling drift
+      holdTimer  = Math.floor(rnd(60, 200));   // how long to creep
+    }
+
+    function scheduleTwitch() {
+      twitchCount = Math.floor(rnd(2, 6));     // rapid micro-jerks
+    }
+
+    // Begin with a short hold
+    startHold();
+
+    function updatePossessedCamera() {
+      if (!autorotate || isDragging) return;
+
+      // ── Micro-twitch override ──
+      if (twitchCount > 0) {
+        yaw   += rnd(-0.04, 0.04);
+        pitch += rnd(-0.02, 0.02);
+        pitch  = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, pitch));
+        twitchCount--;
+        return;
+      }
+
+      // ── Snap phase ──
+      if (snapFrames > 0) {
+        yaw   += (targetYaw   - yaw)   * camSpeed;
+        pitch += (targetPitch - pitch) * camSpeed;
+        pitch  = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, pitch));
+        snapFrames--;
+        if (snapFrames === 0) {
+          // After snap: maybe twitch, then hold
+          if (Math.random() < 0.45) scheduleTwitch();
+          startHold();
+        }
+        return;
+      }
+
+      // ── Hold phase ──
+      if (holdTimer > 0) {
+        holdTimer--;
+        // Very slight organic tremble while holding
+        if (Math.random() < 0.08) {
+          yaw   += rnd(-0.003, 0.003);
+          pitch += rnd(-0.002, 0.002);
+        }
+        if (holdTimer === 0) {
+          // Decide what happens next
+          const roll = Math.random();
+          if (roll < 0.50)      startSnap();
+          else if (roll < 0.80) startCreep();
+          else                  { scheduleTwitch(); startHold(); }
+        }
+        return;
+      }
+
+      // ── Creep phase ──
+      yaw   += (targetYaw   - yaw)   * camSpeed;
+      pitch += (targetPitch - pitch) * camSpeed;
+      pitch  = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, pitch));
+      holdTimer--;   // re-use holdTimer as creep duration counter
+      if (holdTimer <= 0) {
+        const roll = Math.random();
+        if (roll < 0.6) startSnap();
+        else            startHold();
+      }
+    }
+
+    /* ── Render loop ── */
+    function animate() {
+      requestAnimationFrame(animate);
+      updatePossessedCamera();
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    /* ── Resize: keep 4:3 ── */
+    window.addEventListener('resize', () => {
+      const f = document.getElementById('crt-frame');
+      renderer.setSize(f.clientWidth, f.clientHeight);
+      // camera aspect stays 4/3 always
+    });
+
+    /* ── Timestamp HUD ── */
+    const tsEl = document.getElementById('cam-timestamp');
+    function updateTimestamp() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2,'0');
+      const mm = String(now.getMinutes()).padStart(2,'0');
+      const ss = String(now.getSeconds()).padStart(2,'0');
+      const yyyy = now.getFullYear();
+      const mo = String(now.getMonth()+1).padStart(2,'0');
+      const dd = String(now.getDate()).padStart(2,'0');
+      tsEl.textContent = `${hh}:${mm}:${ss}  ${yyyy}/${mo}/${dd}`;
+    }
+    updateTimestamp();
+    setInterval(updateTimestamp, 1000);
+
+    /* ── Glitch Engine ── */
+    const glitchEl = document.getElementById('glitch-overlay');
+    const burstEl  = document.getElementById('static-burst');
+    const scanEl   = document.getElementById('scanlines');
+
+    function rgbStripe() {
+      const y   = Math.floor(rnd(0, 100));
+      const h   = Math.floor(rnd(2, 18));
+      const col = `rgba(${Math.random()>0.5?'255,0,80':'0,255,80'},0.15)`;
+      glitchEl.style.background = `linear-gradient(transparent ${y}%, ${col} ${y}%, ${col} ${y+h}%, transparent ${y+h}%)`;
+    }
+
+    function horizontalTear() {
+      const stops = [];
+      const count = Math.floor(rnd(2, 5));
+      for (let i = 0; i < count; i++) {
+        const y = Math.floor(rnd(0, 95));
+        const h = Math.floor(rnd(1, 6));
+        const c = `rgba(255,255,255,${rnd(0.03,0.12)})`;
+        stops.push(`transparent ${y}%`, `${c} ${y}%`, `${c} ${y+h}%`, `transparent ${y+h}%`);
+      }
+      glitchEl.style.background = `linear-gradient(${stops.join(',')})`;
+    }
+
+    function staticBurst() {
+      burstEl.style.opacity = rnd(0.05, 0.25);
+      burstEl.style.transition = 'opacity 0.04s';
+      setTimeout(() => { burstEl.style.opacity = 0; }, 60);
+    }
+
+    function scanlineShift() {
+      scanEl.style.backgroundSize = `100% ${Math.floor(rnd(40,120))}px`;
+      setTimeout(() => { scanEl.style.backgroundSize = ''; }, rnd(80,200));
+    }
+
+    function doGlitch() {
+      const type = Math.random();
+      glitchEl.classList.add('active');
+      if (type < 0.4)       rgbStripe();
+      else if (type < 0.75) horizontalTear();
+      else                  { rgbStripe(); horizontalTear(); }
+      if (Math.random() < 0.3)  staticBurst();
+      if (Math.random() < 0.25) scanlineShift();
+      const duration = rnd(40, 180);
+      setTimeout(() => {
+        glitchEl.classList.remove('active');
+        glitchEl.style.background = 'transparent';
+      }, duration);
+      if (Math.random() < 0.35) {
+        setTimeout(doGlitch, rnd(duration + 30, duration + 200));
+      }
+    }
+
+    function scheduleGlitch() {
+      const delay = rnd(2500, 9000);
+      setTimeout(() => { doGlitch(); scheduleGlitch(); }, delay);
+    }
+    scheduleGlitch();
+  </script>
+</body>
+</html>
