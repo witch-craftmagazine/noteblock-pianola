@@ -3,9 +3,6 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Music Box</title>
-  
-  <head>
   <!-- Primary Meta Tags -->
   <title>Cafe Amalfi</title>
   <meta name="title" content="Cafe Amalfi" />
@@ -43,155 +40,173 @@
   <!-- Optional: helps some platforms pick a better icon -->
   <link rel="apple-touch-icon" href="./noteblock.png" />
 
-
   <!--
-    Import map: teaches the browser how to resolve the bare "spessasynth_core"
-    specifier used inside lib/spessasynth_lib.js.
-    Must appear before any <script type="module">.
+  Import map: teaches the browser how to resolve the bare "spessasynth_core"
+  specifier used inside lib/spessasynth_lib.js.
+  Must appear before any <script type="module">.
   -->
   <script type="importmap">
   {
-    "imports": {
-      "spessasynth_core": "./lib/spessasynth_core.js"
-    }
+  "imports": {
+  "spessasynth_core": "./lib/spessasynth_core.js"
+  }
   }
   </script>
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body {
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      background: #1a1a2e;
-      transition: background 0.5s ease;
-    }
+  body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #1a1a2e;
+  transition: background 0.5s ease;
+  }
 
-    /* Goal 4b: Background webp class */
-    body.bg-image {
-      background: url('./background.webp') center / cover no-repeat;
-    }
+  /* Goal 4b: Background webp class */
+  body.bg-image {
+  background: url('./background.webp') center / cover no-repeat;
+  }
 
-    #canvas-container {
-      width: 100%;
-      height: 100%;
-      position: relative;
-    }
+  #canvas-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  }
 
-    canvas {
-      display: block;
-      width: 100% !important;
-      height: 100% !important;
-    }
+  canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  }
 
-    /* Loading overlay */
-    #loading {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      background: inherit;
-      color: #fff;
-      font-family: monospace;
-      font-size: 14px;
-      letter-spacing: 0.1em;
-      transition: opacity 0.6s ease;
-      pointer-events: none;
-      z-index: 10;
-    }
+  /* Loading overlay */
+  #loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: inherit;
+  color: #fff;
+  font-family: monospace;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+  z-index: 10;
+  }
 
-    #loading.hidden { opacity: 0; }
+  #loading.hidden { opacity: 0; }
 
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 2px solid rgba(255,255,255,0.15);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+  .spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Error message */
-    #error {
-      position: absolute;
-      inset: 0;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      color: #ff6b6b;
-      font-family: monospace;
-      font-size: 13px;
-      text-align: center;
-      padding: 40px;
-    }
-    #error.visible { display: flex; }
-    #error code {
-      background: rgba(255,255,255,0.08);
-      padding: 8px 16px;
-      border-radius: 6px;
-      color: #fff;
-    }
+  /* Error message */
+  #error {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #ff6b6b;
+  font-family: monospace;
+  font-size: 13px;
+  text-align: center;
+  padding: 40px;
+  }
+  #error.visible { display: flex; }
+  #error code {
+  background: rgba(255,255,255,0.08);
+  padding: 8px 16px;
+  border-radius: 6px;
+  color: #fff;
+  }
 
-    /* ── Wind-up hint toast ── */
-    #wind-hint {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(20,12,8,0.82);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      color: #e8d5a3;
-      font-family: monospace;
-      font-size: 13px;
-      letter-spacing: 0.07em;
-      padding: 10px 20px;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.4s;
-      z-index: 20;
-      white-space: nowrap;
-    }
-    #wind-hint.show { opacity: 1; }
+  /* ── Wind-up hint toast ── */
+  #wind-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(20,12,8,0.82);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  color: #e8d5a3;
+  font-family: monospace;
+  font-size: 13px;
+  letter-spacing: 0.07em;
+  padding: 10px 20px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+  z-index: 20;
+  white-space: nowrap;
+  }
+  #wind-hint.show { opacity: 1; }
 
-    /* ── Note particle canvas (overlay) ── */
-    #note-canvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 5;
-    }
+  /* ── Note particle canvas (overlay) ── */
+  #note-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  }
 
-    /* Goal 4b: Background toggle button */
-    #bg-toggle {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      z-index: 30;
-      background: rgba(20, 12, 8, 0.75);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 8px;
-      color: #e8d5a3;
-      font-family: monospace;
-      font-size: 11px;
-      letter-spacing: 0.07em;
-      padding: 6px 12px;
-      cursor: pointer;
-      backdrop-filter: blur(6px);
-      transition: background 0.15s;
-      user-select: none;
-    }
-    #bg-toggle:hover { background: rgba(255,255,255,0.12); }
+  /* Goal 4b: Background toggle button */
+  #bg-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 30;
+  background: rgba(20, 12, 8, 0.75);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #e8d5a3;
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  padding: 6px 12px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s;
+  user-select: none;
+  }
+  #bg-toggle:hover { background: rgba(255,255,255,0.12); }
+
+  /* ── Minecraft skip overlay ── */
+  #mc-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  #mc-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #mc-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
   </style>
 </head>
 <body>
@@ -202,16 +217,21 @@
   <!-- Note particle overlay -->
   <canvas id="note-canvas"></canvas>
 
+  <!-- Minecraft skip overlay (shown when i_feel_pretty plays) -->
+  <div id="mc-overlay">
+    <canvas id="mc-canvas"></canvas>
+  </div>
+
   <div id="wind-hint">↻ Drag the crank in a clockwise circle to wind up</div>
 
   <div id="loading">
-    <div class="spinner"></div>
-    <span>Loading music box…</span>
+  <div class="spinner"></div>
+  <span>Loading music box…</span>
   </div>
 
   <div id="error">
-    <span>⚠ Could not load <code>musicbox.glb</code></span>
-    <span>Make sure the file is in the same folder as this HTML file.</span>
+  <span>⚠ Could not load <code>musicbox.glb</code></span>
+  <span>Make sure the file is in the same folder as this HTML file.</span>
   </div>
 </div>
 
@@ -220,9 +240,6 @@
 
 <!-- Three.js r128 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- OrbitControls -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
@@ -251,8 +268,8 @@ const CONFIG = {
 // ─────────────────────────────────────────────
 //  SCENE SETUP
 // ─────────────────────────────────────────────
-const canvas    = document.getElementById('three-canvas');
-const loading   = document.getElementById('loading');
+const canvas  = document.getElementById('three-canvas');
+const loading  = document.getElementById('loading');
 const errorBox  = document.getElementById('error');
 const container = document.getElementById('canvas-container');
 const windHint  = document.getElementById('wind-hint');
@@ -262,7 +279,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.outputEncoding  = THREE.sRGBEncoding;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type  = THREE.PCFSoftShadowMap;
 
 const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 100);
@@ -274,16 +291,6 @@ camera.position.set(
   Math.cos(cameraBaseAngle) * CONFIG.cameraDistance
 );
 camera.lookAt(0, 0.5, 0);
-
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 0.5, 0);
-controls.enableDamping    = true;
-controls.dampingFactor    = 0.08;
-controls.minDistance      = 2;
-controls.maxDistance      = 10;
-controls.maxPolarAngle    = Math.PI / 2;
-controls.enabled          = false;
-controls.update();
 
 // ─────────────────────────────────────────────
 //  LIGHTING
@@ -315,29 +322,12 @@ async function loadGLB(url) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buffer = await res.arrayBuffer();
 
-  const view   = new DataView(buffer);
-  const magic  = view.getUint32(0, true);
-  if (magic !== 0x46546C67) throw new Error('Not a valid GLB file');
-  const length = view.getUint32(8, true);
+  if (new DataView(buffer).getUint32(0, true) !== 0x46546C67) throw new Error('Not a valid GLB file');
 
-  let offset = 12;
-  let jsonChunk = null;
-  let binChunk  = null;
-
-  while (offset < length) {
-    const chunkLen  = view.getUint32(offset,     true);
-    const chunkType = view.getUint32(offset + 4, true);
-    const chunkData = buffer.slice(offset + 8, offset + 8 + chunkLen);
-    if (chunkType === 0x4E4F534A) jsonChunk = chunkData;
-    if (chunkType === 0x004E4942) binChunk  = chunkData;
-    offset += 8 + chunkLen;
-  }
-
-  const json = JSON.parse(new TextDecoder().decode(jsonChunk));
   const loader = new THREE.GLTFLoader();
 
   return new Promise((resolve, reject) => {
-    loader.parse(buffer, '', resolve, reject);
+  loader.parse(buffer, '', resolve, reject);
   });
 }
 
@@ -357,85 +347,80 @@ let _openQueued = false;
 
 window.musicBoxAnimations = {
   crank_spin: null,
-  open:       null,
-  close:      null,
-  idle:       null,
+  open:  null,
+  close:  null,
+  idle:  null,
 
   play(name) {
-    const action = this[name];
-    if (!action) {
-      console.warn(`[MusicBox] ⚠ Animation '${name}' not found on mixer — check clip names in GLB.`);
-      return;
-    }
+  const action = this[name];
+  if (!action) {
+  console.warn(`[MusicBox] ⚠ Animation '${name}' not found on mixer — check clip names in GLB.`);
+  return;
+  }
 
-    const clipDuration = action.getClip().duration;
-    console.log(`[MusicBox] ▶ Playing '${name}' | clip duration: ${clipDuration.toFixed(3)}s`);
+  const clipDuration = action.getClip().duration;
 
-    // Stop any animations that would fight the lid pose.
-    // A clamped or paused action still contributes its pose to the mixer,
-    // so we must fully stop() them — not just pause — before playing close/open.
-    if (name === 'close') {
-      if (this.open)  { console.log('[MusicBox] Stopping open before close.');  this.open.stop();  }
-      if (this.idle)  { console.log('[MusicBox] Stopping idle before close.');  this.idle.stop();  }
-      _lidClosing = true;
-      _lidOpening = false;   // open was interrupted — clear its flag
-      _openQueued = false;
-    }
-    if (name === 'open') {
-      if (_lidClosing) {
-        console.log('[MusicBox] Close still running — queuing open until it finishes.');
-        _openQueued = true;
-        return;
-      }
-      if (this.close) { console.log('[MusicBox] Stopping close before open.'); this.close.stop(); }
-      _lidOpening = true;
-    }
+  // Stop any animations that would fight the lid pose.
+  // A clamped or paused action still contributes its pose to the mixer,
+  // so we must fully stop() them — not just pause — before playing close/open.
+  if (name === 'close') {
+  if (this.open)  { this.open.stop();  }
+  if (this.idle)  { this.idle.stop();  }
+  _lidClosing = true;
+  _lidOpening = false;  // open was interrupted — clear its flag
+  _openQueued = false;
+  }
+  if (name === 'open') {
+  if (_lidClosing) {
+  _openQueued = true;
+  return;
+  }
+  if (this.close) { this.close.stop(); }
+  _lidOpening = true;
+  }
 
-    // Three.js r128: reset() alone doesn't always re-enable a finished action.
-    // Explicitly set enabled = true after reset() to guarantee it runs.
-    action.stop();
-    action.reset();
-    action.enabled = true;
-    action.clampWhenFinished = true;
-    action.setLoop(THREE.LoopOnce, 1);
-    action.play();
 
-    console.log(`[MusicBox] Action '${name}' isRunning: ${action.isRunning()}, time: ${action.time.toFixed(3)}`);
+  // Three.js r128: reset() alone doesn't always re-enable a finished action.
+  // Explicitly set enabled = true after reset() to guarantee it runs.
+  action.stop();
+  action.reset();
+  action.enabled = true;
+  action.clampWhenFinished = true;
+  action.setLoop(THREE.LoopOnce, 1);
+  action.play();
+
   },
 
   setCrankSpinning(on) {
-    const crank = this.crank_spin;
-    const idle  = this.idle;
-    if (on) {
-      if (crank) {
-        // Resume path: action was playing and then paused (enabled stays true, time is preserved).
-        // Fresh path:  action was stopped (enabled=false) or never played — needs full reset.
-        if (crank.paused && crank.enabled) {
-          crank.paused = false;
-          console.log('[MusicBox] crank_spin resumed from pause (position preserved).');
-        } else {
-          crank.reset();
-          crank.enabled = true;
-          crank.paused  = false;
-          crank.setLoop(THREE.LoopRepeat, Infinity);
-          crank.play();
-          console.log('[MusicBox] crank_spin started fresh.');
-        }
-      }
-      if (idle) {
-        idle.stop();
-        idle.reset();
-        idle.enabled = true;
-        idle.setLoop(THREE.LoopRepeat, Infinity);
-        idle.play();
-        console.log('[MusicBox] idle started.');
-      }
-    } else {
-      // Pause rather than stop so the handle stays at its current pose
-      // and position is preserved for the next resume.
-      if (crank) { crank.paused = true;  console.log('[MusicBox] crank_spin paused (position held).'); }
-      if (idle)  { idle.stop();          console.log('[MusicBox] idle stopped.'); }
-    }
+  const crank = this.crank_spin;
+  const idle  = this.idle;
+  if (on) {
+  if (crank) {
+  // Resume path: action was playing and then paused (enabled stays true, time is preserved).
+  // Fresh path:  action was stopped (enabled=false) or never played — needs full reset.
+  if (crank.paused && crank.enabled) {
+  crank.paused = false;
+  } else {
+  crank.reset();
+  crank.enabled = true;
+  crank.paused  = false;
+  crank.setLoop(THREE.LoopRepeat, Infinity);
+  crank.play();
+  }
+  }
+  if (idle) {
+  idle.stop();
+  idle.reset();
+  idle.enabled = true;
+  idle.setLoop(THREE.LoopRepeat, Infinity);
+  idle.play();
+  }
+  } else {
+  // Pause rather than stop so the handle stays at its current pose
+  // and position is preserved for the next resume.
+  if (crank) { crank.paused = true; }
+  if (idle)  { idle.stop(); }
+  }
   },
 };
 
@@ -444,99 +429,82 @@ window.musicBoxAnimations = {
 // ─────────────────────────────────────────────
 (async () => {
   try {
-    const gltf = await loadGLB(CONFIG.glbPath);
-    const model = gltf.scene;
-    scene.add(model);
+  const gltf = await loadGLB(CONFIG.glbPath);
+  const model = gltf.scene;
+  scene.add(model);
 
-    // Center model
-    const box = new THREE.Box3().setFromObject(model);
-    const cen = box.getCenter(new THREE.Vector3());
-    model.position.sub(cen);
-    model.position.y += (box.max.y - box.min.y) / 2;
+  // Center model
+  const box = new THREE.Box3().setFromObject(model);
+  const cen = box.getCenter(new THREE.Vector3());
+  model.position.sub(cen);
+  model.position.y += (box.max.y - box.min.y) / 2;
 
-    // Shadows
-    model.traverse(child => {
-      if (child.isMesh) {
-        child.castShadow    = true;
-        child.receiveShadow = true;
-      }
-    });
+  // Shadows
+  model.traverse(child => {
+  if (child.isMesh) {
+  child.castShadow  = true;
+  child.receiveShadow = true;
+  }
+  });
 
-    // Register interactive meshes
-    window._registerCrankMeshes && window._registerCrankMeshes(model);
-    window._registerLidMeshes   && window._registerLidMeshes(model);
+  // Register interactive meshes
+  window._registerCrankMeshes && window._registerCrankMeshes(model);
+  window._registerLidMeshes  && window._registerLidMeshes(model);
 
-    // Animations
-    if (gltf.animations && gltf.animations.length > 0) {
-      mixer = new THREE.AnimationMixer(model);
+  // Animations
+  if (gltf.animations && gltf.animations.length > 0) {
+  mixer = new THREE.AnimationMixer(model);
 
-      console.log('[MusicBox] Available animation clips:', gltf.animations.map(c => `"${c.name}" (${c.duration.toFixed(3)}s)`).join(', '));
+  gltf.animations.forEach(clip => {
+  const action = mixer.clipAction(clip);
+  const key  = clip.name.toLowerCase().replace(/\s+/g, '_');
+  if (window.musicBoxAnimations.hasOwnProperty(key)) {
+  window.musicBoxAnimations[key] = action;
+  }
+  });
 
-      gltf.animations.forEach(clip => {
-        const action = mixer.clipAction(clip);
-        const key    = clip.name.toLowerCase().replace(/\s+/g, '_');
-        if (window.musicBoxAnimations.hasOwnProperty(key)) {
-          window.musicBoxAnimations[key] = action;
-          console.log(`[MusicBox] Registered animation '${key}' -> clip "${clip.name}" (${clip.duration.toFixed(3)}s)`);
-        } else {
-          console.log(`[MusicBox] Skipped clip "${clip.name}" (key "${key}" not in animation map)`);
-        }
-      });
+  // Strip lid tracks from looping animations so they can't fight open/close.
+  // A looping action that includes lid keyframes holds the lid at whatever
+  // pose those keyframes define, blending against and defeating close/open.
+  const LID_PATTERN = /lid|top|cover/i;
+  ['crank_spin', 'idle'].forEach(key => {
+  const clip = window.musicBoxAnimations[key]?.getClip();
+  if (!clip) return;
+  const before = clip.tracks.length;
+  clip.tracks = clip.tracks.filter(t => !LID_PATTERN.test(t.name));
+  });
+  mixer.addEventListener('finished', (e) => {
+  const clipName = e.action.getClip().name;
+  const key  = clipName.toLowerCase().replace(/\s+/g, '_');
 
-      // Strip lid tracks from looping animations so they can't fight open/close.
-      // A looping action that includes lid keyframes holds the lid at whatever
-      // pose those keyframes define, blending against and defeating close/open.
-      const LID_PATTERN = /lid|top|cover/i;
-      ['crank_spin', 'idle'].forEach(key => {
-        const clip = window.musicBoxAnimations[key]?.getClip();
-        if (!clip) return;
-        const before = clip.tracks.length;
-        clip.tracks = clip.tracks.filter(t => !LID_PATTERN.test(t.name));
-        const removed = before - clip.tracks.length;
-        if (removed > 0) {
-          console.log(`[MusicBox] Stripped ${removed} lid track(s) from '${key}'.`);
-        } else {
-          console.log(`[MusicBox] No lid tracks found in '${key}' (pattern: ${LID_PATTERN}).`);
-        }
-      });
-      mixer.addEventListener('finished', (e) => {
-        const clipName = e.action.getClip().name;
-        const key      = clipName.toLowerCase().replace(/\s+/g, '_');
-        console.log(`[MusicBox] FINISHED: "${clipName}" | time: ${e.action.time.toFixed(3)}s`);
+  if (key === 'close') {
+  _lidClosing = false;
+  if (_openQueued) {
+  _openQueued = false;
+  window.musicBoxAnimations.play('open');
+  }
+  }
 
-        if (key === 'close') {
-          _lidClosing = false;
-          console.log('[MusicBox] Lid is now fully closed and held.');
-          if (_openQueued) {
-            _openQueued = false;
-            console.log('[MusicBox] Playing queued open animation.');
-            window.musicBoxAnimations.play('open');
-          }
-        }
+  if (key === 'open') {
+  _lidOpening = false;
+  // Crank spin was already started in onMusicPlay — nothing more to do here.
+  }
+  });
 
-        if (key === 'open') {
-          _lidOpening = false;
-          // Crank spin was already started in onMusicPlay — nothing more to do here.
-          // _pendingMusicStart is kept cleared so no stale state accumulates.
-          window._pendingMusicStart = false;
-          console.log('[MusicBox] Lid fully open. Crank should already be spinning.');
-        }
-      });
+  } else {
+  console.warn('[MusicBox] No animations found in GLB. Lid and crank will not animate.');
+  }
 
-    } else {
-      console.warn('[MusicBox] No animations found in GLB. Lid and crank will not animate.');
-    }
+  loading.classList.add('hidden');
 
-    loading.classList.add('hidden');
-
-    // Show wind hint
-    windHint.classList.add('show');
-    setTimeout(() => windHint.classList.remove('show'), 3000);
+  // Show wind hint
+  windHint.classList.add('show');
+  setTimeout(() => windHint.classList.remove('show'), 3000);
 
   } catch (err) {
-    console.error('GLB load error:', err);
-    loading.classList.add('hidden');
-    errorBox.classList.add('visible');
+  console.error('GLB load error:', err);
+  loading.classList.add('hidden');
+  errorBox.classList.add('visible');
   }
 })();
 
@@ -551,7 +519,6 @@ function animate() {
   // While the user is manually scrubbing the crank, pass 0 so the mixer
   // renders the current pose without advancing time and overwriting action.time.
   if (mixer) mixer.update(isDragging ? 0 : delta);
-  controls.update();
   renderer.render(scene, camera);
 }
 animate();
@@ -559,24 +526,28 @@ animate();
 // ─────────────────────────────────────────────
 //  INTERACTION STATE
 // ─────────────────────────────────────────────
-let isDragging   = false;
-let lastMouseX   = 0;
-let lastMouseY   = 0;
-let windAccum    = 0;
-let hasPlayed    = false;
-let lidOpen      = false;
+let isDragging  = false;
+let lastMouseX  = 0;
+let lastMouseY  = 0;
+let windAccum  = 0;
+let hasPlayed  = false;
+let lidOpen  = false;
 let crankMeshes  = [];
-let lidMeshes    = [];
+let lidMeshes  = [];
+
+// Tracks which AnimationActions have been initialized in the mixer
+// (avoids using non-standard properties on Three.js objects).
+const _initializedActions = new WeakSet();
 
 // ── Raycaster for mesh hit testing ────────────
 const raycaster = new THREE.Raycaster();
-const mouse     = new THREE.Vector2();
+const mouse  = new THREE.Vector2();
 
 function hitTest(event, meshes) {
   if (!meshes.length) return false;
   const rect = canvas.getBoundingClientRect();
   mouse.x =  ((event.clientX - rect.left)  / rect.width)  * 2 - 1;
-  mouse.y = -((event.clientY - rect.top)   / rect.height) * 2 + 1;
+  mouse.y = -((event.clientY - rect.top)  / rect.height) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
   return raycaster.intersectObjects(meshes, true).length > 0;
 }
@@ -584,104 +555,97 @@ function hitTest(event, meshes) {
 // ── Lid toggle ─────────────────────────────────
 function toggleLid() {
   if (lidOpen) {
-    window.musicBoxAnimations.play('close');
-    lidOpen = false;
+  window.musicBoxAnimations.play('close');
+  lidOpen = false;
   } else {
-    window.musicBoxAnimations.play('open');
-    lidOpen = true;
+  window.musicBoxAnimations.play('open');
+  lidOpen = true;
   }
 }
 
 // ── Crank drag ────────────────────────────────
 canvas.addEventListener('mousemove', e => {
   if (isDragging) {
-    const dx = e.clientX - lastMouseX;
-    const dy = e.clientY - lastMouseY;
-    lastMouseX = e.clientX;
-    lastMouseY = e.clientY;
+  const dx = e.clientX - lastMouseX;
+  const dy = e.clientY - lastMouseY;
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
 
-    const action = window.musicBoxAnimations.crank_spin;
-    if (action) {
-      const duration  = action.getClip().duration;
-      const timePerPx = duration / CONFIG.DRAG_PX_PER_REV;
+  const action = window.musicBoxAnimations.crank_spin;
+  if (action) {
+  const duration  = action.getClip().duration;
+  const timePerPx = duration / CONFIG.DRAG_PX_PER_REV;
 
-      // Bug 3: accept up OR down drag on the vertical axis (abs), 
-      // and left stroke on horizontal. Use dominant axis to avoid double-counting.
-      const vertDelta = Math.abs(dy);
-      const horizDelta = Math.max(0, -dx); // only leftward counts horizontally
-      const forwardDelta = vertDelta >= Math.abs(dx) ? vertDelta : horizDelta;
+  // Bug 3: accept up OR down drag on the vertical axis (abs), 
+  // and left stroke on horizontal. Use dominant axis to avoid double-counting.
+  const vertDelta = Math.abs(dy);
+  const horizDelta = Math.max(0, -dx); // only leftward counts horizontally
+  const forwardDelta = vertDelta >= Math.abs(dx) ? vertDelta : horizDelta;
 
-      windAccum += forwardDelta;
+  windAccum += forwardDelta;
 
-      // Bug 2: ensure action is initialized in the mixer before scrubbing.
-      // An action that was never play()'d has no mixer binding and setting
-      // .time on it does nothing visible. Play+pause to register it.
-      if (!action.isRunning() && !action._initialized) {
-        action.reset();
-        action.enabled = true;
-        action.setLoop(THREE.LoopRepeat, Infinity);
-        action.play();
-        action.paused = true;
-        action._initialized = true;
-        mixer && mixer.update(0);
-      }
+  // Bug 2: ensure action is initialized in the mixer before scrubbing.
+  // An action that was never play()'d has no mixer binding and setting
+  // .time on it does nothing visible. Play+pause to register it.
+  if (!action.isRunning() && !_initializedActions.has(action)) {
+  action.reset();
+  action.enabled = true;
+  action.setLoop(THREE.LoopRepeat, Infinity);
+  action.play();
+  action.paused = true;
+  _initializedActions.add(action);
+  mixer && mixer.update(0);
+  }
 
-      action.time   = (action.time + forwardDelta * timePerPx) % duration;
-      action.paused = true;
-      mixer && mixer.update(0);
-    }
-
-    if (window.onCrankTurn) window.onCrankTurn(dx);
+  action.time  = (action.time + forwardDelta * timePerPx) % duration;
+  action.paused = true;
+  mixer && mixer.update(0);
+  }
 
   } else {
-    const overCrank = hitTest(e, crankMeshes);
-    const overLid   = hitTest(e, lidMeshes);
-    canvas.style.cursor = overCrank ? 'grab' : (overLid ? 'pointer' : 'default');
+  const overCrank = hitTest(e, crankMeshes);
+  const overLid  = hitTest(e, lidMeshes);
+  canvas.style.cursor = overCrank ? 'grab' : (overLid ? 'pointer' : 'default');
   }
 });
 
 canvas.addEventListener('mousedown', e => {
   const overCrank = hitTest(e, crankMeshes);
-  const overLid   = hitTest(e, lidMeshes);
+  const overLid  = hitTest(e, lidMeshes);
 
   if (overCrank) {
-    isDragging          = true;
-    lastMouseX          = e.clientX;
-    lastMouseY          = e.clientY;
-    controls.enabled    = false;
-    canvas.style.cursor = 'grabbing';
-    const action = window.musicBoxAnimations.crank_spin;
-    if (action) action.paused = true;
-    const idleAction = window.musicBoxAnimations.idle;
-    if (idleAction) idleAction.stop();
-    if (window.musicPlayer && window.musicPlayer.isPlaying()) {
-      window.musicPlayer.pause();
-    }
-    windAccum = 0;
-    hasPlayed = false;
-    console.log(`[MusicBox] mousedown on crank | was playing: ${window.musicPlayer?.isPlaying()} | lidOpen: ${lidOpen} | windAccum+hasPlayed reset.`);
+  isDragging  = true;
+  lastMouseX  = e.clientX;
+  lastMouseY  = e.clientY;
+  canvas.style.cursor = 'grabbing';
+  const action = window.musicBoxAnimations.crank_spin;
+  if (action) action.paused = true;
+  const idleAction = window.musicBoxAnimations.idle;
+  if (idleAction) idleAction.stop();
+  if (window.musicPlayer && window.musicPlayer.isPlaying()) {
+  window.musicPlayer.pause();
+  }
+  windAccum = 0;
+  hasPlayed = false;
   } else if (overLid) {
-    toggleLid();
+  toggleLid();
   }
 });
 
 window.addEventListener('mouseup', () => {
   if (!isDragging) return;
-  isDragging          = false;
+  isDragging  = false;
   canvas.style.cursor = 'default';
 
   // #1: Trigger play only when the user releases the crank, not during drag
   const windsCompleted = windAccum / CONFIG.DRAG_PX_PER_REV;
-  console.log(`[MusicBox] mouseup | winds: ${windsCompleted.toFixed(2)} / ${CONFIG.WINDS_TO_PLAY} | hasPlayed: ${hasPlayed} | lidOpen: ${lidOpen} | _lidOpening: ${_lidOpening} | playing: ${window.musicPlayer?.isPlaying()}`);
 
   if (windsCompleted >= CONFIG.WINDS_TO_PLAY && !hasPlayed) {
-    hasPlayed = true;
-    console.log('[MusicBox] Wind threshold reached — calling musicPlayer.play(). Lid/crank will sync via onMusicPlay.');
-    if (window.musicPlayer) window.musicPlayer.play();
+  hasPlayed = true;
+  if (window.musicPlayer) window.musicPlayer.play();
   } else {
-    // Do NOT call setCrankSpinning here — that is onMusicPlay's job.
-    // Calling it here risks fighting the lid/crank state managed by the callbacks.
-    console.log(`[MusicBox] mouseup: no action (winds ${windsCompleted.toFixed(2)} < ${CONFIG.WINDS_TO_PLAY} or hasPlayed=${hasPlayed}).`);
+  // Do NOT call setCrankSpinning here — that is onMusicPlay's job.
+  // Calling it here risks fighting the lid/crank state managed by the callbacks.
   }
 });
 
@@ -691,42 +655,34 @@ window.addEventListener('mouseup', () => {
 window._registerCrankMeshes = function(root) {
   crankMeshes = [];
   root.traverse(child => {
-    if (child.name && /crank/i.test(child.name)) crankMeshes.push(child);
+  if (child.name && /crank/i.test(child.name)) crankMeshes.push(child);
   });
-  console.log('Crank meshes:', crankMeshes.map(m => m.name));
 };
 
 window._registerLidMeshes = function(root) {
   lidMeshes = [];
   root.traverse(child => {
-    if (child.name && /lid|top|cover/i.test(child.name)) lidMeshes.push(child);
+  if (child.name && /lid|top|cover/i.test(child.name)) lidMeshes.push(child);
   });
-  console.log('Lid meshes:', lidMeshes.map(m => m.name));
 };
 
 // ─────────────────────────────────────────────
 //  MUSIC CALLBACKS — Goal 3: Lid + crank sync
 // ─────────────────────────────────────────────
 window.onMusicPlay = () => {
-  console.log(`[MusicBox] onMusicPlay | lidOpen: ${lidOpen} | _lidOpening: ${_lidOpening} | _lidClosing: ${_lidClosing}`);
 
   // Open the lid if it isn't already (animation runs in parallel with music + crank).
   if (!lidOpen) {
-    lidOpen = true;
-    window.musicBoxAnimations.play('open');
-    console.log('[MusicBox] onMusicPlay: lid was closed → opening now (parallel with music + crank).');
-  } else {
-    console.log('[MusicBox] onMusicPlay: lid already open.');
+  lidOpen = true;
+  window.musicBoxAnimations.play('open');
   }
 
   // Start crank immediately — don't wait for the lid animation to finish.
   // Music and crank are tightly coupled; the lid opening is a parallel flourish.
   window.musicBoxAnimations.setCrankSpinning(true);
-  console.log('[MusicBox] onMusicPlay: crank spin started.');
 };
 
 window.onMusicPause = () => {
-  console.log(`[MusicBox] onMusicPause | lidOpen: ${lidOpen} | _lidOpening: ${_lidOpening}`);
 
   // #2: Stop the crank spinning animation but leave it at its current pose
   // by pausing instead of stopping, so the handle stays put visually.
@@ -737,16 +693,14 @@ window.onMusicPause = () => {
 
   // Close lid (if open or mid-open — play('close') handles the queue guard internally).
   if (lidOpen) {
-    window.musicBoxAnimations.play('close');
-    lidOpen = false;
-    console.log('[MusicBox] onMusicPause: closing lid.');
+  window.musicBoxAnimations.play('close');
+  lidOpen = false;
   }
 };
 
 // Bug #5: handled in script.js — song end now always autoplays next track.
 // onMusicEnd resets local wind state so the crank is ready for the next song.
 window.onMusicEnd = () => {
-  console.log('[MusicBox] onMusicEnd | resetting windAccum, hasPlayed. Stopping crank. script.js will load next track and fire onMusicPlay.');
   windAccum = 0;
   hasPlayed = false;
   // Stop crank so it restarts cleanly when next song's onMusicPlay fires
@@ -762,9 +716,6 @@ window.addEventListener('resize', () => {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
-  controls.update();
-  const nc = document.getElementById('note-canvas');
-  if (nc) { nc.width = w; nc.height = h; }
 });
 
 // ─────────────────────────────────────────────
@@ -775,129 +726,129 @@ window.addEventListener('resize', () => {
   let bgImage = false;
 
   btn.addEventListener('click', () => {
-    bgImage = !bgImage;
-    document.body.classList.toggle('bg-image', bgImage);
-    btn.textContent = bgImage ? '⬛ BG' : '⬜ BG';
+  bgImage = !bgImage;
+  document.body.classList.toggle('bg-image', bgImage);
+  btn.textContent = bgImage ? '⬛ BG' : '⬜ BG';
   });
 })();
 </script>
 
 <!-- ─────────────────────────────────────────────
-     NOTE PARTICLE SYSTEM
-     Goal 1: Random color tinting from palette.
-     Particles drawn in a blended tint of the chosen
-     color (mixed with white) so they aren't fully flat.
+  NOTE PARTICLE SYSTEM
+  Goal 1: Random color tinting from palette.
+  Particles drawn in a blended tint of the chosen
+  color (mixed with white) so they aren't fully flat.
 ──────────────────────────────────────────────── -->
 <script>
 (function() {
   const noteCanvas = document.getElementById('note-canvas');
-  const ctx        = noteCanvas.getContext('2d');
+  const ctx  = noteCanvas.getContext('2d');
 
   // Match size to container
   function resizeNoteCanvas() {
-    noteCanvas.width  = container.clientWidth;
-    noteCanvas.height = container.clientHeight;
+  noteCanvas.width  = container.clientWidth;
+  noteCanvas.height = container.clientHeight;
   }
   resizeNoteCanvas();
   window.addEventListener('resize', resizeNoteCanvas);
 
   // Goal 1: Color palette
   const PARTICLE_PALETTE = [
-    '#77D700','#95C000','#B2A500','#CC8600','#E26500',
-    '#F34100','#FC1E00','#FE000F','#F70033','#E8005A',
-    '#CF0083','#AE00A9','#8600CC'
+  '#77D700','#95C000','#B2A500','#CC8600','#E26500',
+  '#F34100','#FC1E00','#FE000F','#F70033','#E8005A',
+  '#CF0083','#AE00A9','#8600CC'
   ];
 
   // Parse a hex color into [r, g, b]
   function hexToRGB(hex) {
-    const n = parseInt(hex.slice(1), 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
 
   // Blend color with white at given strength (0=white, 1=full color)
   // Returns an rgba() string respecting particle alpha
   function tintedColor(rgb, strength, alpha) {
-    const r = Math.round(rgb[0] * strength + 255 * (1 - strength));
-    const g = Math.round(rgb[1] * strength + 255 * (1 - strength));
-    const b = Math.round(rgb[2] * strength + 255 * (1 - strength));
-    return `rgba(${r},${g},${b},${alpha})`;
+  const r = Math.round(rgb[0] * strength + 255 * (1 - strength));
+  const g = Math.round(rgb[1] * strength + 255 * (1 - strength));
+  const b = Math.round(rgb[2] * strength + 255 * (1 - strength));
+  return `rgba(${r},${g},${b},${alpha})`;
   }
 
   const NOTES_GLYPHS = ['♩','♪','♫','♬'];
-  const particles    = [];
-  let   isPlaying    = false;
-  let   spawnTimer   = 0;
+  const particles  = [];
+  let  isPlaying  = false;
+  let  spawnTimer  = 0;
 
   const SPAWN_INTERVAL_MS = 400;
   const SPAWN_X_MIN = 0.3;
   const SPAWN_X_MAX = 0.7;
-  const SPAWN_Y     = 0.45;
+  const SPAWN_Y  = 0.45;
 
   function spawnNote() {
-    const x   = (SPAWN_X_MIN + Math.random() * (SPAWN_X_MAX - SPAWN_X_MIN)) * noteCanvas.width;
-    const y   = SPAWN_Y * noteCanvas.height;
-    const hex = PARTICLE_PALETTE[Math.floor(Math.random() * PARTICLE_PALETTE.length)];
-    particles.push({
-      x,
-      y,
-      glyph   : NOTES_GLYPHS[Math.floor(Math.random() * NOTES_GLYPHS.length)],
-      size    : 14 + Math.random() * 14,
-      vx      : (Math.random() - 0.5) * 0.6,
-      vy      : -(0.5 + Math.random() * 0.8),
-      alpha   : 1,
-      fadeRate: 0.004 + Math.random() * 0.004,
-      wobble  : Math.random() * Math.PI * 2,
-      wobbleAmp: 0.3 + Math.random() * 0.5,
-      rgb     : hexToRGB(hex),   // Goal 1: per-particle color
-    });
+  const x  = (SPAWN_X_MIN + Math.random() * (SPAWN_X_MAX - SPAWN_X_MIN)) * noteCanvas.width;
+  const y  = SPAWN_Y * noteCanvas.height;
+  const hex = PARTICLE_PALETTE[Math.floor(Math.random() * PARTICLE_PALETTE.length)];
+  particles.push({
+  x,
+  y,
+  glyph  : NOTES_GLYPHS[Math.floor(Math.random() * NOTES_GLYPHS.length)],
+  size  : 14 + Math.random() * 14,
+  vx  : (Math.random() - 0.5) * 0.6,
+  vy  : -(0.5 + Math.random() * 0.8),
+  alpha  : 1,
+  fadeRate: 0.004 + Math.random() * 0.004,
+  wobble  : Math.random() * Math.PI * 2,
+  wobbleAmp: 0.3 + Math.random() * 0.5,
+  rgb  : hexToRGB(hex),  // Goal 1: per-particle color
+  });
   }
 
   let lastTime = null;
 
   function tickNotes(timestamp) {
-    requestAnimationFrame(tickNotes);
+  requestAnimationFrame(tickNotes);
 
-    const dt = lastTime ? timestamp - lastTime : 16;
-    lastTime = timestamp;
+  const dt = lastTime ? timestamp - lastTime : 16;
+  lastTime = timestamp;
 
-    if (isPlaying) {
-      spawnTimer += dt;
-      if (spawnTimer >= SPAWN_INTERVAL_MS) {
-        spawnTimer = 0;
-        spawnNote();
-        if (Math.random() < 0.25) spawnNote();
-      }
-    }
+  if (isPlaying) {
+  spawnTimer += dt;
+  if (spawnTimer >= SPAWN_INTERVAL_MS) {
+  spawnTimer = 0;
+  spawnNote();
+  if (Math.random() < 0.25) spawnNote();
+  }
+  }
 
-    ctx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
+  ctx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
 
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
+  for (let i = particles.length - 1; i >= 0; i--) {
+  const p = particles[i];
 
-      p.wobble += 0.03;
-      p.x      += p.vx + Math.sin(p.wobble) * p.wobbleAmp;
-      p.y      += p.vy;
-      p.alpha  -= p.fadeRate;
+  p.wobble += 0.03;
+  p.x  += p.vx + Math.sin(p.wobble) * p.wobbleAmp;
+  p.y  += p.vy;
+  p.alpha  -= p.fadeRate;
 
-      if (p.alpha <= 0) {
-        particles.splice(i, 1);
-        continue;
-      }
+  if (p.alpha <= 0) {
+  particles.splice(i, 1);
+  continue;
+  }
 
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, p.alpha);
-      ctx.font        = `${p.size}px serif`;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, p.alpha);
+  ctx.font  = `${p.size}px serif`;
 
-      // Goal 1: fill with blended tint (65% color + 35% white = not fully saturated)
-      ctx.fillStyle   = tintedColor(p.rgb, 0.65, p.alpha);
+  // Goal 1: fill with blended tint (65% color + 35% white = not fully saturated)
+  ctx.fillStyle  = tintedColor(p.rgb, 0.65, p.alpha);
 
-      // Goal 1: shadow glow uses the pure color for depth/contrast
-      ctx.shadowColor = `rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},0.7)`;
-      ctx.shadowBlur  = 8;
+  // Goal 1: shadow glow uses the pure color for depth/contrast
+  ctx.shadowColor = `rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},0.7)`;
+  ctx.shadowBlur  = 8;
 
-      ctx.fillText(p.glyph, p.x, p.y);
-      ctx.restore();
-    }
+  ctx.fillText(p.glyph, p.x, p.y);
+  ctx.restore();
+  }
   }
 
   requestAnimationFrame(tickNotes);
@@ -905,22 +856,22 @@ window.addEventListener('resize', () => {
   // Chain onto existing music callbacks
   const _origPlay  = window.onMusicPlay;
   const _origPause = window.onMusicPause;
-  const _origEnd   = window.onMusicEnd;
+  const _origEnd  = window.onMusicEnd;
 
   window.onMusicPlay = () => {
-    isPlaying = true;
-    if (_origPlay) _origPlay();
+  isPlaying = true;
+  if (_origPlay) _origPlay();
   };
 
   window.onMusicPause = () => {
-    isPlaying = false;
-    if (_origPause) _origPause();
+  isPlaying = false;
+  if (_origPause) _origPause();
   };
 
   // Bug #5: when a song ends, reset state so the next song auto-starts cleanly
   window.onMusicEnd = () => {
-    isPlaying = false;
-    if (_origEnd) _origEnd();
+  isPlaying = false;
+  if (_origEnd) _origEnd();
   };
 })();
 </script>
@@ -928,5 +879,635 @@ window.addEventListener('resize', () => {
 <!-- Step 3: MIDI music player -->
 <script type="module" src="./script.js"></script>
 
+<!-- ─────────────────────────────────────────────
+  MINECRAFT SKIP OVERLAY
+  Shown when i_feel_pretty_1957_-_bernstein.mid plays.
+  Skin loaded automatically from ./sweetpea.png.
+──────────────────────────────────────────────── -->
+<script>
+(function () {
+  'use strict';
+
+  const TRIGGER_SONG = 'i_feel_pretty_1957_-_bernstein';
+  const SKIN_PATH    = './sweetpea.png';
+  const ENDERMAN_GLB = './enderman.glb';
+
+  // ── UV MAP ────────────────────────────────────────────────────
+  const UV = {
+    head:        [[16,8,8,8],  [0,8,8,8],   [8,0,8,8],  [16,7,8,-8],  [8,8,8,8],   [24,8,8,8]],
+    hat:         [[48,8,8,8],  [32,8,8,8],  [40,0,8,8], [48,7,8,-8],  [40,8,8,8],  [56,8,8,8]],
+    torso:       [[28,20,4,12],[16,20,4,12],[20,16,8,4],[28,19,8,-4], [20,20,8,12],[32,20,8,12]],
+    jacket:      [[28,36,4,12],[16,36,4,12],[20,32,8,4],[28,35,8,-4], [20,36,8,12],[32,36,8,12]],
+    rightArm:    [[48,20,4,12],[40,20,4,12],[44,16,4,4],[48,19,4,-4], [44,20,4,12],[52,20,4,12]],
+    rightSleeve: [[48,36,4,12],[40,36,4,12],[44,32,4,4],[48,35,4,-4], [44,36,4,12],[52,36,4,12]],
+    leftArm:     [[40,52,4,12],[32,52,4,12],[36,48,4,4],[40,51,4,-4], [36,52,4,12],[44,52,4,12]],
+    leftSleeve:  [[56,52,4,12],[48,52,4,12],[52,48,4,4],[56,51,4,-4], [52,52,4,12],[60,52,4,12]],
+    rightLeg:    [[8,20,4,12], [0,20,4,12], [4,16,4,4], [8,19,4,-4],  [4,20,4,12], [12,20,4,12]],
+    rightPant:   [[8,36,4,12], [0,36,4,12], [4,32,4,4], [8,35,4,-4],  [4,36,4,12], [12,36,4,12]],
+    leftLeg:     [[24,52,4,12],[16,52,4,12],[20,48,4,4],[24,51,4,-4], [20,52,4,12],[28,52,4,12]],
+    leftPant:    [[8,52,4,12], [0,52,4,12], [4,48,4,4], [8,51,4,-4],  [4,52,4,12], [12,52,4,12]],
+    leftArmV0:   [[43,20,-4,12],[51,20,-4,12],[47,16,-4,4],[51,19,-4,-4],[47,20,-4,12],[55,20,-4,12]],
+    leftLegV0:   [[3,20,-4,12], [11,20,-4,12],[7,16,-4,4], [11,19,-4,-4],[7,20,-4,12], [15,20,-4,12]],
+  };
+
+  // ── Renderer / Scene / Camera ─────────────────────────────────
+  const mcOverlay  = document.getElementById('mc-overlay');
+  const mcCanvas   = document.getElementById('mc-canvas');
+
+  const mcRenderer = new THREE.WebGLRenderer({ canvas: mcCanvas, antialias: false, alpha: true });
+  mcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  mcRenderer.setClearColor(0x000000, 0);
+
+  const mcScene  = new THREE.Scene();
+  mcScene.background = new THREE.Color(0x5b9bd5);
+  mcScene.fog = new THREE.Fog(0x5b9bd5, 130, 280);
+
+  const mcCamera = new THREE.PerspectiveCamera(55, 1, 0.5, 500);
+  mcCamera.position.set(0, 28, 88);
+  mcCamera.lookAt(0, 10, 0);
+
+  function mcResize() {
+    const w = mcOverlay.offsetWidth  || window.innerWidth;
+    const h = mcOverlay.offsetHeight || window.innerHeight;
+    mcRenderer.setSize(w, h, false);
+    mcCamera.aspect = w / h;
+    mcCamera.updateProjectionMatrix();
+  }
+  mcResize();
+  window.addEventListener('resize', mcResize);
+
+  // ── Lighting ──────────────────────────────────────────────────
+  mcScene.add(new THREE.AmbientLight(0xc8d8ff, 0.65));
+  const mcSun = new THREE.DirectionalLight(0xfff4cc, 1.0);
+  mcSun.position.set(70, 110, 50);
+  mcScene.add(mcSun);
+  const mcFill = new THREE.DirectionalLight(0x7090cc, 0.35);
+  mcFill.position.set(-50, 20, 60);
+  mcScene.add(mcFill);
+
+  // ── World helpers ─────────────────────────────────────────────
+  const _matCache = new Map();
+  function solidMat(hex) {
+    if (!_matCache.has(hex)) _matCache.set(hex, new THREE.MeshLambertMaterial({ color: hex }));
+    return _matCache.get(hex);
+  }
+  function addBox(w, h, d, color, x, y, z) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), solidMat(color));
+    m.position.set(x, y, z);
+    mcScene.add(m);
+    return m;
+  }
+
+  // Ground
+  addBox(500, 6,  80, 0x4d8c1e, 0, -3,  0);
+  addBox(500, 12, 80, 0x6b4423, 0, -12, 0);
+  addBox(500, 8,  80, 0x555555, 0, -22, 0);
+  for (let x = -200; x <= 200; x += 8) {
+    addBox(4, 0.4, 80, Math.random() > 0.5 ? 0x558a1e : 0x5fa022, x, 0, 0);
+  }
+
+  // Trees
+  const treeData = [
+    [-110,-20,16],[-85,-20,14],[-60,-20,18],[-35,-20,15],[-8,-20,17],
+    [18,-20,14],[45,-20,18],[68,-20,15],[92,-20,17],[115,-20,14],
+    [-120,-35,20],[-90,-35,18],[-65,-35,22],[-40,-35,19],[-15,-35,21],
+    [10,-35,18],[38,-35,22],[62,-35,19],[88,-35,21],[112,-35,18],
+  ];
+  treeData.forEach(([x, z, h]) => {
+    addBox(4, h,   4, 0x5c3d1e, x, h / 2, z);
+    addBox(14,14, 14, 0x2d7a1f, x, h + 5, z);
+    addBox(10,10, 10, 0x267316, x, h + 8, z + 1);
+  });
+
+  // Clouds
+  const mcClouds = [];
+  function makeCloud(x, y, z) {
+    const g = new THREE.Group();
+    [[0,0,0,20,5,10],[14,0,-2,12,4,8],[-12,0,1,10,4,7],[4,5,0,14,4,8],[-5,4,2,10,3,6]]
+      .forEach(([cx,cy,cz,cw,ch,cd]) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(cw,ch,cd), solidMat(0xeef5ff));
+        m.position.set(cx,cy,cz);
+        g.add(m);
+      });
+    g.position.set(x, y, z);
+    mcScene.add(g);
+    mcClouds.push({ obj: g, speed: 1.5 + Math.random() });
+  }
+  makeCloud(-90, 65, -30); makeCloud(20, 72, -25);
+  makeCloud(120, 60, -38); makeCloud(-180, 68, -20);
+  makeCloud(200, 64, -45); makeCloud(60, 75, -50);
+
+  // Sun
+  addBox(20, 20, 2, 0xFFE060, 80, 85, -55);
+  addBox(26,  4, 2, 0xFFCC30, 80, 85, -55);
+  addBox(4,  26, 2, 0xFFCC30, 80, 85, -55);
+
+  // ── Skin helpers ──────────────────────────────────────────────
+  function makeFaceMaterials(skinImg, faceUVs) {
+    return faceUVs.map(([sx, sy, sw, sh]) => {
+      const aw = Math.abs(sw), ah = Math.abs(sh);
+      const c = document.createElement('canvas');
+      c.width = aw; c.height = ah;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      ctx.save();
+      if (sw < 0) { ctx.translate(aw, 0); ctx.scale(-1,  1); }
+      if (sh < 0) { ctx.translate(0, ah); ctx.scale( 1, -1); }
+      ctx.drawImage(skinImg, sx, sy, aw, ah, 0, 0, aw, ah);
+      ctx.restore();
+      const tex = new THREE.CanvasTexture(c);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      return new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: 0.05 });
+    });
+  }
+
+  function detectAlpha(img) {
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx2d = c.getContext('2d');
+    ctx2d.drawImage(img, 0, 0);
+    const d = ctx2d.getImageData(0, 0, img.width, img.height).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] < 255) return true;
+    return false;
+  }
+
+  function meshPart(group, geo, img, uvKey) {
+    group.add(new THREE.Mesh(geo, makeFaceMaterials(img, UV[uvKey])));
+  }
+
+  function buildPlayer(img) {
+    const v     = img.height >= 64 ? 1 : 0;
+    const alpha = detectAlpha(img);
+    const root  = new THREE.Group();
+
+    const headG = new THREE.Group(); headG.position.set(0, 12, 0);
+    meshPart(headG, new THREE.BoxGeometry(8, 8, 8), img, 'head');
+    if (alpha) meshPart(headG, new THREE.BoxGeometry(9.25, 9.25, 9.25), img, 'hat');
+    root.add(headG);
+
+    const torsoG = new THREE.Group(); torsoG.position.set(0, 2, 0);
+    meshPart(torsoG, new THREE.BoxGeometry(8, 12, 4), img, 'torso');
+    if (v >= 1 && alpha) meshPart(torsoG, new THREE.BoxGeometry(8.5, 12.5, 4.5), img, 'jacket');
+    root.add(torsoG);
+
+    const rArmG = new THREE.Group(); rArmG.position.set(-6, 6, 0);
+    const rArmGeo = new THREE.BoxGeometry(4, 12, 4); rArmGeo.translate(0, -6, 0);
+    meshPart(rArmG, rArmGeo, img, 'rightArm');
+    if (v >= 1 && alpha) { const g = new THREE.BoxGeometry(4.55,12.55,4.55); g.translate(0,-6,0); meshPart(rArmG, g, img, 'rightSleeve'); }
+    root.add(rArmG);
+
+    const lArmG = new THREE.Group(); lArmG.position.set(6, 6, 0);
+    const lArmGeo = new THREE.BoxGeometry(4, 12, 4); lArmGeo.translate(0, -6, 0);
+    meshPart(lArmG, lArmGeo, img, v >= 1 ? 'leftArm' : 'leftArmV0');
+    if (v >= 1 && alpha) { const g = new THREE.BoxGeometry(4.55,12.55,4.55); g.translate(0,-6,0); meshPart(lArmG, g, img, 'leftSleeve'); }
+    root.add(lArmG);
+
+    const rLegG = new THREE.Group(); rLegG.position.set(-2, -4, 0);
+    const rLegGeo = new THREE.BoxGeometry(4, 12, 4); rLegGeo.translate(0, -6, 0);
+    meshPart(rLegG, rLegGeo, img, 'rightLeg');
+    if (v >= 1 && alpha) { const g = new THREE.BoxGeometry(4.55,12.55,4.55); g.translate(0,-6,0); meshPart(rLegG, g, img, 'rightPant'); }
+    root.add(rLegG);
+
+    const lLegG = new THREE.Group(); lLegG.position.set(2, -4, 0);
+    const lLegGeo = new THREE.BoxGeometry(4, 12, 4); lLegGeo.translate(0, -6, 0);
+    meshPart(lLegG, lLegGeo, img, v >= 1 ? 'leftLeg' : 'leftLegV0');
+    if (v >= 1 && alpha) { const g = new THREE.BoxGeometry(4.55,12.55,4.55); g.translate(0,-6,0); meshPart(lLegG, g, img, 'leftPant'); }
+    root.add(lLegG);
+
+    return root;
+  }
+
+  // ── Poof particle system ──────────────────────────────────────
+  // Each poof is a bunch of expanding, fading cubes burst from a point.
+  const POOF_DURATION = 0.55;   // seconds the poof lasts
+  const POOF_COUNT    = 14;     // particles per poof
+  let   activePoofs   = [];     // [{mesh, vel, age}]
+
+  function spawnPoof(x, y, isEnderman) {
+    const color  = isEnderman ? 0x8833cc : 0xdddddd;
+    const color2 = isEnderman ? 0x330066 : 0xaaaaaa;
+    for (let i = 0; i < POOF_COUNT; i++) {
+      const size = 2 + Math.random() * 3.5;
+      const geo  = new THREE.BoxGeometry(size, size, size);
+      const mat  = new THREE.MeshLambertMaterial({
+        color: Math.random() > 0.4 ? color : color2,
+        transparent: true,
+        opacity: 1.0,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, 0);
+      mcScene.add(mesh);
+
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 8 + Math.random() * 22;
+      const vy    = 6 + Math.random() * 18;
+      activePoofs.push({
+        mesh,
+        mat,
+        vx: Math.cos(angle) * speed,
+        vy,
+        vz: (Math.random() - 0.5) * 6,
+        spin: (Math.random() - 0.5) * 8,
+        age: 0,
+      });
+    }
+  }
+
+  function tickPoofs(dt) {
+    for (let i = activePoofs.length - 1; i >= 0; i--) {
+      const p = activePoofs[i];
+      p.age += dt;
+      const t = p.age / POOF_DURATION;
+      if (t >= 1) {
+        mcScene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mat.dispose();
+        activePoofs.splice(i, 1);
+        continue;
+      }
+      p.mesh.position.x += p.vx * dt;
+      p.mesh.position.y += p.vy * dt;
+      p.mesh.position.z += p.vz * dt;
+      p.vy -= 18 * dt; // gravity
+      p.mesh.rotation.x += p.spin * dt;
+      p.mesh.rotation.z += p.spin * 0.7 * dt;
+      // ease-out scale
+      const scale = 1 + t * 1.4;
+      p.mesh.scale.setScalar(scale);
+      p.mat.opacity = 1 - t * t;
+    }
+  }
+
+  // ── Enderman (GLB) ────────────────────────────────────────────
+  let mcEnderman     = null;   // THREE.Group from GLB
+  let endermanMixer  = null;   // AnimationMixer
+  let endermanLoaded = false;
+  let endermanFailed = false;
+
+  // Try to load GLTFLoader (may already be on window via the page's own script tags).
+  // If not, we build a simple procedural Enderman as fallback.
+  function buildProceduralEnderman() {
+    const g = new THREE.Group();
+    const dark = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    const eye  = new THREE.MeshBasicMaterial({ color: 0xff44ff });
+
+    function pb(w, h, d, x, y, z, mat) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat || dark);
+      m.position.set(x, y, z);
+      g.add(m);
+      return m;
+    }
+
+    // Body – Enderman is ~3 blocks tall (scaled to match world units)
+    pb(3, 15, 2,  0, 7.5,  0);   // torso
+    pb(3, 10, 2, -2.5, 0, 0);   // left leg
+    pb(3, 10, 2,  2.5, 0, 0);   // right leg
+    pb(2, 22, 2, -4, 13,  0);   // left arm
+    pb(2, 22, 2,  4, 13,  0);   // right arm
+    const head = pb(5, 5, 5, 0, 19, 0);
+    // Eyes
+    const eL = new THREE.Mesh(new THREE.BoxGeometry(1, 0.6, 0.2), eye);
+    eL.position.set(-1.2, 0.4, 2.6); head.add(eL);
+    const eR = new THREE.Mesh(new THREE.BoxGeometry(1, 0.6, 0.2), eye);
+    eR.position.set( 1.2, 0.4, 2.6); head.add(eR);
+
+    // Store children refs for animation
+    g.userData.head   = head;
+    g.userData.lArm   = g.children[2];
+    g.userData.rArm   = g.children[3];
+    g.userData.lLeg   = g.children[1];
+    g.userData.rLeg   = g.children[0]; // re-map properly below
+    // Actually index them properly
+    g.userData.lLeg   = g.children[1]; // index 1 = left leg
+    g.userData.rLeg   = g.children[2]; // index 2 = right leg
+    g.userData.lArm   = g.children[3]; // index 3 = left arm
+    g.userData.rArm   = g.children[4]; // index 4 = right arm
+    g.userData.headPart = g.children[5]; // index 5 = head
+
+    return g;
+  }
+
+  function loadEnderman(onReady) {
+    if (endermanLoaded) { onReady(mcEnderman); return; }
+    if (endermanFailed) { onReady(null);       return; }
+
+    // Attempt GLTFLoader if available
+    const Loader = window.THREE && THREE.GLTFLoader;
+    if (Loader) {
+      const loader = new Loader();
+      loader.load(
+        ENDERMAN_GLB,
+        (gltf) => {
+          mcEnderman    = gltf.scene;
+          endermanMixer = gltf.animations.length
+            ? new THREE.AnimationMixer(mcEnderman)
+            : null;
+          if (endermanMixer && gltf.animations.length) {
+            endermanMixer.clipAction(gltf.animations[0]).play();
+          }
+          // Scale to match world – tweak if your GLB is different
+          mcEnderman.scale.setScalar(12);
+          endermanLoaded = true;
+          onReady(mcEnderman);
+        },
+        undefined,
+        (err) => {
+          console.warn('[MC Overlay] ⚠ enderman.glb load failed, using procedural fallback.', err);
+          endermanFailed = true;
+          mcEnderman = buildProceduralEnderman();
+          endermanLoaded = true;
+          onReady(mcEnderman);
+        }
+      );
+    } else {
+      // No GLTFLoader – build procedural
+      console.warn('[MC Overlay] THREE.GLTFLoader not available, using procedural Enderman.');
+      endermanFailed = true;
+      mcEnderman = buildProceduralEnderman();
+      endermanLoaded = true;
+      onReady(mcEnderman);
+    }
+  }
+
+  // ── Skip animation state ──────────────────────────────────────
+  const GROUND_Y    = 0;
+  const FEET_OFFSET = 16;
+  const X_RANGE     = 52;
+  const MOVE_SPEED  = 13;
+  const SKIP_HZ     = 2.3;
+  const BOUNCE_AMP  = 5.2;
+  const LEG_SWING   = Math.PI * 0.44;
+  const ARM_SWING   = Math.PI * 0.33;
+
+  // Enderman walk constants
+  const END_MOVE_SPEED = 11;
+  const END_WALK_HZ    = 1.6;
+  const END_LEG_SWING  = Math.PI * 0.30;
+  const END_ARM_SWING  = Math.PI * 0.20;
+
+  let mcPlayer  = null;
+  let skinImage = null;  // keep the loaded image for rebuilding
+
+  // ── State machine ─────────────────────────────────────────────
+  // States: 'player' | 'poofing_to_enderman' | 'enderman' | 'poofing_to_player'
+  let mcState    = 'player';
+  let poofTimer  = 0;
+  const POOF_PAUSE = 0.28;  // seconds to hide both while poof plays before showing next
+
+  let mcDir     =  1;   // current walking direction
+  let mcElapsed =  0;
+  let endElapsed = 0;
+
+  const shadowGeo  = new THREE.CircleGeometry(5, 8);
+  const shadowMat  = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false });
+  const shadowDisc = new THREE.Mesh(shadowGeo, shadowMat);
+  shadowDisc.rotation.x = -Math.PI / 2;
+  shadowDisc.position.y = GROUND_Y + 0.3;
+  shadowDisc.visible = false;
+  mcScene.add(shadowDisc);
+
+  // ── Player tick ───────────────────────────────────────────────
+  function tickPlayer(dt) {
+    if (!mcPlayer) return;
+    mcElapsed += dt;
+
+    let px = mcPlayer.position.x + mcDir * MOVE_SPEED * dt;
+
+    // ── hit right wall → poof to enderman
+    if (px >= X_RANGE && mcState === 'player') {
+      px = X_RANGE;
+      triggerPoofToEnderman(px);
+      return;
+    }
+
+    const phi    = mcElapsed * SKIP_HZ * Math.PI * 2;
+    const swing  = Math.sin(phi);
+    const bounce = Math.abs(Math.sin(phi)) * BOUNCE_AMP;
+
+    mcPlayer.position.x = px;
+    mcPlayer.position.y = GROUND_Y + FEET_OFFSET + bounce;
+    mcPlayer.position.z = 0;
+
+    const targetY = mcDir > 0 ? -Math.PI * 0.18 : Math.PI * 0.18;
+    mcPlayer.rotation.y += (targetY - mcPlayer.rotation.y) * 0.14;
+    mcPlayer.rotation.z  = mcDir * 0.045;
+
+    mcPlayer.children[0].rotation.x =  Math.sin(phi * 0.5) * 0.06;
+    mcPlayer.children[2].rotation.x = -swing * ARM_SWING;
+    mcPlayer.children[3].rotation.x =  swing * ARM_SWING;
+    mcPlayer.children[4].rotation.x =  swing * LEG_SWING;
+    mcPlayer.children[5].rotation.x = -swing * LEG_SWING;
+
+    const shadowScale = 1.0 - bounce / (BOUNCE_AMP * 1.6);
+    shadowDisc.position.x = px;
+    shadowDisc.scale.setScalar(Math.max(0.3, shadowScale));
+    shadowMat.opacity = Math.max(0.05, 0.28 * shadowScale);
+  }
+
+  // ── Enderman tick ─────────────────────────────────────────────
+  function tickEnderman(dt) {
+    if (!mcEnderman) return;
+    endElapsed += dt;
+
+    if (endermanMixer) endermanMixer.update(dt);
+
+    let px = mcEnderman.position.x + (-1) * END_MOVE_SPEED * dt; // always walks left
+
+    // ── hit left wall → poof back to player
+    if (px <= -X_RANGE && mcState === 'enderman') {
+      px = -X_RANGE;
+      triggerPoofToPlayer(px);
+      return;
+    }
+
+    const phi   = endElapsed * END_WALK_HZ * Math.PI * 2;
+    const swing = Math.sin(phi);
+
+    mcEnderman.position.x = px;
+    mcEnderman.position.y = GROUND_Y + FEET_OFFSET - 2; // enderman taller, adjust
+    mcEnderman.position.z = 0;
+    mcEnderman.rotation.y = Math.PI * 0.12; // faces slightly toward camera, walking left
+
+    // Animate procedural limbs if no GLB animation
+    if (!endermanMixer) {
+      const ud = mcEnderman.userData;
+      if (ud.headPart) ud.headPart.rotation.x = Math.sin(endElapsed * 0.8) * 0.06;
+      if (ud.lArm) { ud.lArm.rotation.x =  swing * END_ARM_SWING; }
+      if (ud.rArm) { ud.rArm.rotation.x = -swing * END_ARM_SWING; }
+      if (ud.lLeg) { ud.lLeg.rotation.x = -swing * END_LEG_SWING; }
+      if (ud.rLeg) { ud.rLeg.rotation.x =  swing * END_LEG_SWING; }
+    }
+
+    shadowDisc.position.x = px;
+    shadowDisc.scale.setScalar(0.85);
+    shadowMat.opacity = 0.18;
+  }
+
+  // ── Poof transitions ──────────────────────────────────────────
+  function triggerPoofToEnderman(atX) {
+    mcState = 'poofing_to_enderman';
+    poofTimer = 0;
+
+    // Hide player
+    if (mcPlayer) mcPlayer.visible = false;
+    shadowDisc.visible = false;
+
+    spawnPoof(atX, GROUND_Y + FEET_OFFSET + 4, false);
+
+    // After POOF_PAUSE seconds, show enderman
+  }
+
+  function triggerPoofToPlayer(atX) {
+    mcState = 'poofing_to_player';
+    poofTimer = 0;
+
+    if (mcEnderman) mcEnderman.visible = false;
+    shadowDisc.visible = false;
+
+    spawnPoof(atX, GROUND_Y + FEET_OFFSET + 8, true); // purple poof
+  }
+
+  function finishPoofToEnderman(atX) {
+    // Place enderman at right edge, walking left
+    loadEnderman((em) => {
+      if (!em) {
+        // Fallback: just restart player going left
+        mcDir = -1;
+        if (mcPlayer) { mcPlayer.visible = true; mcPlayer.position.x = X_RANGE; }
+        shadowDisc.visible = true;
+        mcState = 'player';
+        return;
+      }
+      if (!em.parent) mcScene.add(em);
+      em.position.set(atX, GROUND_Y + FEET_OFFSET - 2, 0);
+      em.visible = true;
+      endElapsed = 0;
+      shadowDisc.visible = true;
+      mcState = 'enderman';
+    });
+  }
+
+  function finishPoofToPlayer() {
+    // Hide enderman, show player at left edge going right
+    if (mcEnderman) mcEnderman.visible = false;
+
+    mcDir = 1;
+    if (mcPlayer) {
+      mcPlayer.position.set(-X_RANGE, GROUND_Y + FEET_OFFSET, 0);
+      mcPlayer.visible = true;
+    }
+    mcElapsed = 0;
+    shadowDisc.visible = true;
+    mcState = 'player';
+  }
+
+  // ── Master tick ───────────────────────────────────────────────
+  function tickAll(dt) {
+    tickPoofs(dt);
+
+    switch (mcState) {
+      case 'player':
+        tickPlayer(dt);
+        break;
+
+      case 'poofing_to_enderman':
+        poofTimer += dt;
+        if (poofTimer >= POOF_PAUSE) finishPoofToEnderman(X_RANGE);
+        break;
+
+      case 'enderman':
+        tickEnderman(dt);
+        break;
+
+      case 'poofing_to_player':
+        poofTimer += dt;
+        if (poofTimer >= POOF_PAUSE) finishPoofToPlayer();
+        break;
+    }
+  }
+
+  // ── Render loop ───────────────────────────────────────────────
+  let mcLastNow = null;
+  let mcRunning = false;
+
+  function mcLoop(now) {
+    if (!mcRunning) return;
+    requestAnimationFrame(mcLoop);
+    if (mcLastNow === null) mcLastNow = now;
+    const dt = Math.min((now - mcLastNow) / 1000, 0.1);
+    mcLastNow = now;
+
+    tickAll(dt);
+    mcClouds.forEach(({ obj, speed }) => {
+      obj.position.x += dt * speed;
+      if (obj.position.x > 220) obj.position.x = -220;
+    });
+    mcRenderer.render(mcScene, mcCamera);
+  }
+
+  // ── Load sweetpea.png on startup ──────────────────────────────
+  const skinImg = new Image();
+  skinImg.crossOrigin = 'anonymous';
+  skinImg.onload = () => {
+    skinImage = skinImg;
+    if (mcPlayer) { mcScene.remove(mcPlayer); mcPlayer = null; }
+    mcPlayer = buildPlayer(skinImg);
+    mcPlayer.position.set(-X_RANGE, GROUND_Y + FEET_OFFSET, 0);
+    mcElapsed = 0; mcDir = 1;
+    mcScene.add(mcPlayer);
+    shadowDisc.visible = true;
+    mcState = 'player';
+
+    // Pre-load enderman in background so first swap is instant
+    loadEnderman(() => {});
+  };
+  skinImg.onerror = () => {
+    console.warn('[MC Overlay] ❌ Could not load sweetpea.png — place it in the root directory.');
+  };
+  skinImg.src = SKIN_PATH;
+
+  // ── Show / hide helpers ───────────────────────────────────────
+  function showMcOverlay() {
+    mcResize();
+    mcOverlay.classList.add('visible');
+    if (!mcRunning) {
+      mcRunning = true;
+      mcLastNow = null;
+      requestAnimationFrame(mcLoop);
+    }
+  }
+
+  function hideMcOverlay() {
+    mcOverlay.classList.remove('visible');
+    mcRunning = false;
+  }
+
+  // ── Hook into music callbacks ─────────────────────────────────
+  const _prevPlay  = window.onMusicPlay;
+  const _prevPause = window.onMusicPause;
+  const _prevEnd   = window.onMusicEnd;
+
+  window.onMusicPlay = function (songFile) {
+    const raw  = songFile || window._currentSong || '';
+    const name = raw.replace(/\.mid$/i, '').replace(/^.*[\\/]/, '');
+    if (name === TRIGGER_SONG) showMcOverlay();
+    if (_prevPlay) _prevPlay(songFile);
+  };
+
+  window.onMusicPause = function (songFile) {
+    hideMcOverlay();
+    if (_prevPause) _prevPause(songFile);
+  };
+
+  window.onMusicEnd = function (songFile) {
+    hideMcOverlay();
+    if (_prevEnd) _prevEnd(songFile);
+  };
+
+  window._setCurrentSong = function (name) { window._currentSong = name; };
+
+})();
+</script>
 </body>
-</html>

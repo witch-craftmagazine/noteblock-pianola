@@ -101,7 +101,7 @@ function buildUI() {
     }
     #mp-controls button:hover { background: rgba(255,255,255,0.14); }
     #mp-controls button:disabled { opacity: 0.35; cursor: default; }
-    #mp-play    { min-width: 48px; font-size: 15px !important; }
+    #mp-play    { width: 48px; min-width: 48px; text-align: center; font-size: 15px !important; }
     /* Shuffle button */
     #mp-shuffle { font-size: 15px !important; padding: 5px 10px; font-weight: bold; }
     #mp-shuffle.active {
@@ -306,6 +306,8 @@ async function togglePlay() {
     playing = false;
     ui.play.innerHTML = '&#9654;';
     setStatus('Paused');
+    console.log('[MusicPlayer] ⏸ PAUSE — track:', window._currentSong);
+    window._currentSong = '';
     if (window.onMusicPause) window.onMusicPause();
   } else {
     if (!songLoaded) {
@@ -313,8 +315,14 @@ async function togglePlay() {
     }
     seq.play();
     playing = true;
-    ui.play.innerHTML = '&#10074;&#10074;';
+    ui.play.innerHTML = '&#9646;&#9646;';
     setStatus('Playing');
+    // Ensure _currentSong is always stamped here — loadTrack sets it when loading,
+    // but if songLoaded was already true (resume after pause) we need to refresh it.
+    if (!window._currentSong) {
+      window._currentSong = (tracks[current] || '').split('/').pop();
+    }
+    console.log('[MusicPlayer] ▶ PLAY (togglePlay) — _currentSong:', window._currentSong, '| index:', current);
     if (window.onMusicPlay) window.onMusicPlay();
   }
 
@@ -338,11 +346,21 @@ async function loadTrack(index, autoPlay = true) {
     seq.loadNewSongList([song]);
     songLoaded = true;
 
+    // Always stamp _currentSong as soon as the track is loaded,
+    // so onMusicPlay (called from either this branch or togglePlay) always sees it.
+    window._currentSong = (tracks[index] || '').split('/').pop();
+    console.log('[MusicPlayer] 📀 track loaded — _currentSong set to:', window._currentSong);
+
     if (autoPlay) {
       seq.play();
       playing = true;
       ui.play.innerHTML = '&#9646;&#9646;';
       setStatus('Playing');
+      const currentTrackPath = tracks[index];
+      console.log('[MusicPlayer] ▶ PLAY (loadTrack) — index:', index, '| path:', currentTrackPath);
+      console.log('[MusicPlayer]   filename:', currentTrackPath?.split('/').pop());
+      console.log('[MusicPlayer]   window._currentSong set to:', currentTrackPath?.split('/').pop());
+      window._currentSong = currentTrackPath?.split('/').pop() || '';
       if (window.onMusicPlay) window.onMusicPlay();
       startSeekLoop();
     } else {
@@ -406,8 +424,10 @@ function startSeekLoop() {
       playing = false;
       ui.play.innerHTML = '&#9654;';
       seekLoopRunning = false;
+      console.log('[MusicPlayer] ⏹ SONG END — finished:', tracks[current]);
       if (window.onMusicEnd) window.onMusicEnd();
       const idx = (current + 1) % tracks.length;
+      console.log('[MusicPlayer]   → auto-advancing to index:', idx, '|', tracks[idx]);
       loadTrack(idx, true);   // true = always autoPlay on natural song end
       return;
     }
@@ -443,14 +463,6 @@ window.musicPlayer = {
   prev: prevTrack,
   shuffle: shuffleTrack,
   isPlaying: () => playing,
-
-  onCrankTurn(dx) {
-    // Hook reserved for future haptic/visual feedback
-  },
-};
-
-window.onCrankTurn = (dx) => {
-  window.musicPlayer.onCrankTurn(dx);
 };
 
 // ─────────────────────────────────────────────────────────────────
