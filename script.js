@@ -1,13 +1,13 @@
 // ─────────────────────────────────────────────────────────────────
 //  MUSIC BOX — MIDI PLAYER
-//  Uses spessasynth_lib with minecraft2.sf2
+//  Uses spessasynth_lib with minecraft3.sf2
 //  Reads track list from midilist.json
 // ─────────────────────────────────────────────────────────────────
 
 import { Sequencer, WorkletSynthesizer } 
 from "./lib/spessasynth_lib.js";
 
-const SF2_PATH     = './minecraft2.sf2';
+const SF2_PATH     = './minecraft3.sf2';
 const WORKLET_PATH = './lib/spessasynth_processor.min.js';
 const LIST_PATH    = './midilist.json';
 
@@ -235,7 +235,7 @@ async function init() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     sfBuffer = await res.arrayBuffer();
   } catch (e) {
-    setStatus('⚠ Could not load minecraft2.sf2');
+    setStatus('⚠ Could not load minecraft3.sf2');
     console.error(e);
     return;
   }
