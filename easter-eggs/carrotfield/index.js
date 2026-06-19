@@ -16,8 +16,6 @@
 // or any of its globals.
 
 export function init({ trigger }) {
-  'use strict';
-
   const TRIGGER_SONG = trigger;
   const SKIN_PATH   = './easter-eggs/carrotfield/bama.png';
   const CARROT_PATH = './easter-eggs/carrotfield/carrot.png';

@@ -12,7 +12,6 @@
 // pattern used throughout the codebase. It does not modify anything else.
 
 export function init({ trigger }) {
-  'use strict';
 
   const TRIGGER_SONG = trigger;
   const SKIN_PATH    = './easter-eggs/minecraft/sweetpea.png';
