@@ -1,0 +1,7 @@
+[
+  {
+    "id": "minecraft",
+    "trigger": "i_feel_pretty_1957_-_bernstein",
+    "module": "./easter-eggs/minecraft/index.js"
+  }
+]
