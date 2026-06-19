@@ -4,12 +4,13 @@
 //  Reads track list from midilist.json
 // ─────────────────────────────────────────────────────────────────
 
-import { Sequencer, WorkletSynthesizer } 
+import { Sequencer, WorkletSynthesizer }
 from "./lib/spessasynth_lib.js";
 
 const SF2_PATH     = './minecraft3.sf2';
 const WORKLET_PATH = './lib/spessasynth_processor.min.js';
 const LIST_PATH    = './midilist.json';
+const UI_SOUND_PATH = './sounds/click.ogg';
 
 // ── State ──────────────────────────────────────────────────────────
 let context       = null;
@@ -20,7 +21,45 @@ let current       = 0;
 let ready         = false;
 let playing       = false;
 let songLoaded    = false;
-let pendingVolume = 0.8;   // applied to synth once audio context is created
+
+// P5: Volume is stored as a slider position (0–1), converted to gain via
+// a 4th-power curve on the way to the synth. This makes the slider feel
+// perceptually linear — equal steps sound equally loud throughout the range.
+// sliderToGain(0.5) ≈ 0.06  →  about 24 dB below full  →  perceptually "half loud"
+// sliderToGain(0.8) ≈ 0.41  →  a comfortable default listening level
+let pendingSlider = 0.8;   // slider position; actual gain = pendingSlider ** 4
+
+function sliderToGain(v) { return v ** 4; }
+function gainToSlider(g) { return g ** (1 / 4); }
+
+// ── UI Sound ───────────────────────────────────────────────────────
+// P7: A short click sound plays on every button press.
+// The buffer is loaded lazily after the AudioContext is created.
+// We never create an AudioContext just to play a UI sound.
+let uiSoundBuffer = null;
+
+async function loadUiSound() {
+  try {
+    const res = await fetch(UI_SOUND_PATH);
+    if (!res.ok) return;  // missing file is non-fatal — UI just plays silently
+    const buf = await res.arrayBuffer();
+    uiSoundBuffer = await context.decodeAudioData(buf);
+  } catch (e) {
+    console.warn('[MusicPlayer] UI sound not loaded:', e);
+  }
+}
+
+function playUiSound() {
+  // Only play if the AudioContext already exists (i.e. user has interacted).
+  // Never trigger context creation for a UI sound.
+  if (!context || !uiSoundBuffer) return;
+  try {
+    const src = context.createBufferSource();
+    src.buffer = uiSoundBuffer;
+    src.connect(context.destination);
+    src.start();
+  } catch (e) { /* non-fatal */ }
+}
 
 // ── UI refs ───────────────────────────────────────────────────────
 let ui = {};
@@ -37,7 +76,7 @@ function buildUI() {
       <button id="mp-prev"    title="Previous">&#9664;&#9664;</button>
       <button id="mp-play"    title="Play / Pause">&#9654;</button>
       <button id="mp-next"    title="Next">&#9654;&#9654;</button>
-      <button id="mp-shuffle" title="Shuffle">?</button>
+      <button id="mp-shuffle" title="Shuffle">⇄</button>
     </div>
     <div id="mp-seek-row">
       <span id="mp-time-cur">0:00</span>
@@ -46,9 +85,14 @@ function buildUI() {
     </div>
     <div id="mp-vol-row">
       <span id="mp-vol-icon">♪</span>
-      <input id="mp-vol" type="range" min="0" max="1" value="0.8" step="0.01"/>
+      <input id="mp-vol" type="range" min="0" max="1" value="${pendingSlider}" step="0.01"/>
     </div>
-    <select id="mp-list"></select>
+    <div id="mp-list-row">
+      <select id="mp-list"></select>
+      <label id="mp-upload-btn" title="Play your own MIDI file" tabindex="0">↑
+        <input id="mp-file" type="file" accept=".mid,.midi" style="display:none"/>
+      </label>
+    </div>
     <div id="mp-status">Loading soundfont…</div>
   `;
   document.body.appendChild(panel);
@@ -102,7 +146,6 @@ function buildUI() {
     #mp-controls button:hover { background: rgba(255,255,255,0.14); }
     #mp-controls button:disabled { opacity: 0.35; cursor: default; }
     #mp-play    { width: 48px; min-width: 48px; text-align: center; font-size: 15px !important; }
-    /* Shuffle button */
     #mp-shuffle { font-size: 15px !important; padding: 5px 10px; font-weight: bold; }
     #mp-shuffle.active {
       background: rgba(200, 168, 90, 0.22);
@@ -122,7 +165,14 @@ function buildUI() {
       cursor: pointer;
       height: 3px;
     }
+    /* P7: track list row with upload button */
+    #mp-list-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
     #mp-list {
+      flex: 1;
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 6px;
@@ -134,6 +184,21 @@ function buildUI() {
       max-height: 28px;
     }
     #mp-list option { background: #1a0e08; }
+    /* P10: Upload MIDI button */
+    #mp-upload-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #e8d5a3;
+      font-size: 13px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+    }
+    #mp-upload-btn:hover { background: rgba(255,255,255,0.14); }
     #mp-status {
       font-size: 10px;
       opacity: 0.45;
@@ -156,6 +221,8 @@ function buildUI() {
     timeTotal : panel.querySelector('#mp-time-total'),
     vol       : panel.querySelector('#mp-vol'),
     list      : panel.querySelector('#mp-list'),
+    uploadBtn : panel.querySelector('#mp-upload-btn'),
+    fileInput : panel.querySelector('#mp-file'),
     status    : panel.querySelector('#mp-status'),
   };
 
@@ -220,7 +287,7 @@ async function init() {
     ui.list.appendChild(opt);
   });
 
-  // Goal 2: Start on a random track instead of always track 0
+  // Start on a random track
   if (tracks.length > 1) {
     current = Math.floor(Math.random() * tracks.length);
   }
@@ -241,14 +308,14 @@ async function init() {
   }
 
   // 3. Wire UI events
-  ui.play.addEventListener('click', () => togglePlay());
-  ui.prev.addEventListener('click', () => prevTrack());
-  ui.next.addEventListener('click', () => nextTrack());
-  ui.list.addEventListener('change', () => loadTrack(Number(ui.list.value), true));
-  ui.vol.addEventListener('input',   () => setVolume(Number(ui.vol.value)));
+  ui.play.addEventListener('click', () => { playUiSound(); togglePlay(); });
+  ui.prev.addEventListener('click', () => { playUiSound(); prevTrack(); });
+  ui.next.addEventListener('click', () => { playUiSound(); nextTrack(); });
+  ui.list.addEventListener('change', () => { playUiSound(); loadTrack(Number(ui.list.value), true); });
+  ui.shuffle.addEventListener('click', () => { playUiSound(); shuffleTrack(); });
 
-  // Goal 2: Shuffle button
-  ui.shuffle.addEventListener('click', () => shuffleTrack());
+  // P5: slider value → 4th-power gain curve
+  ui.vol.addEventListener('input', () => setVolume(Number(ui.vol.value)));
 
   ui.seek.addEventListener('pointerdown', () => { isSeeking = true; });
   ui.seek.addEventListener('pointerup',   () => {
@@ -257,6 +324,9 @@ async function init() {
       seq.currentTime = (Number(ui.seek.value) / 1000) * seq.duration;
     }
   });
+
+  // P10: MIDI file upload
+  ui.fileInput.addEventListener('change', () => handleUpload());
 
   window._sf2Buffer = sfBuffer;
 
@@ -276,19 +346,42 @@ async function ensureAudioContext() {
 
   setStatus('Starting audio…');
 
+  // P6: Tell iOS to treat this page's audio as media playback,
+  // which routes it through the media volume channel and ignores
+  // the hardware ringer/silent switch. Requires Safari 16.4+.
+  // The feature-detect guard makes it safe on all other browsers.
+  if ('audioSession' in navigator) {
+    navigator.audioSession.type = 'playback';
+  }
+
   context = new AudioContext();
   await context.audioWorklet.addModule(WORKLET_PATH);
 
   synth = new WorkletSynthesizer(context);
-  synth.connect(context.destination);
+
+  // P8: Insert a dynamics compressor between the synth and destination.
+  // This softens harsh peaks without squashing the overall dynamic range.
+  // Tune threshold and ratio to taste — more negative threshold = more compression.
+  const compressor = context.createDynamicsCompressor();
+  compressor.threshold.value = -18;  // dB — start compressing at -18 dBFS
+  compressor.knee.value      =   6;  // dB of soft knee (gentle onset)
+  compressor.ratio.value     =   4;  // 4:1 ratio — moderate, not "radio" compression
+  compressor.attack.value    =   0.003;  // seconds — fast enough to catch transients
+  compressor.release.value   =   0.25;   // seconds — slow enough to avoid pumping
+
+  synth.connect(compressor);
+  compressor.connect(context.destination);
 
   await synth.soundBankManager.addSoundBank(window._sf2Buffer, 'minecraft');
 
-  // Apply volume that may have been set before audio context existed
-  synth.setMasterParameter("masterGain", pendingVolume);
+  // P5: Apply the perceptual gain curve to the pending slider value.
+  synth.setMasterParameter("masterGain", sliderToGain(pendingSlider));
 
   seq = new Sequencer(synth);
   seq.loop = false;
+
+  // P7: Load the UI click sound now that the context exists
+  loadUiSound();
 
   setStatus('Ready');
 }
@@ -317,8 +410,6 @@ async function togglePlay() {
     playing = true;
     ui.play.innerHTML = '&#9646;&#9646;';
     setStatus('Playing');
-    // Ensure _currentSong is always stamped here — loadTrack sets it when loading,
-    // but if songLoaded was already true (resume after pause) we need to refresh it.
     if (!window._currentSong) {
       window._currentSong = (tracks[current] || '').split('/').pop();
     }
@@ -346,8 +437,6 @@ async function loadTrack(index, autoPlay = true) {
     seq.loadNewSongList([song]);
     songLoaded = true;
 
-    // Always stamp _currentSong as soon as the track is loaded,
-    // so onMusicPlay (called from either this branch or togglePlay) always sees it.
     window._currentSong = (tracks[index] || '').split('/').pop();
     console.log('[MusicPlayer] 📀 track loaded — _currentSong set to:', window._currentSong);
 
@@ -358,8 +447,6 @@ async function loadTrack(index, autoPlay = true) {
       setStatus('Playing');
       const currentTrackPath = tracks[index];
       console.log('[MusicPlayer] ▶ PLAY (loadTrack) — index:', index, '| path:', currentTrackPath);
-      console.log('[MusicPlayer]   filename:', currentTrackPath?.split('/').pop());
-      console.log('[MusicPlayer]   window._currentSong set to:', currentTrackPath?.split('/').pop());
       window._currentSong = currentTrackPath?.split('/').pop() || '';
       if (window.onMusicPlay) window.onMusicPlay();
       startSeekLoop();
@@ -382,24 +469,22 @@ function nextTrack() {
   loadTrack(idx, playing);
 }
 
-// Goal 2: Pick a random track that isn't the current one
 function shuffleTrack() {
   if (tracks.length <= 1) return;
   let idx;
-  do {
-    idx = Math.floor(Math.random() * tracks.length);
-  } while (idx === current);
+  do { idx = Math.floor(Math.random() * tracks.length); } while (idx === current);
 
-  // Brief visual feedback on the button
   ui.shuffle.classList.add('active');
   setTimeout(() => ui.shuffle.classList.remove('active'), 500);
 
   loadTrack(idx, playing);
 }
 
-function setVolume(v) {
-  pendingVolume = v;
-  if (synth) synth.setMasterParameter("masterGain", v);
+// P5: Map slider position → perceptual gain via 4th-power curve.
+// The slider HTML attribute stays 0–1; only the value sent to the synth changes.
+function setVolume(sliderVal) {
+  pendingSlider = sliderVal;
+  if (synth) synth.setMasterParameter("masterGain", sliderToGain(sliderVal));
 }
 
 function updateTrackName(index) {
@@ -407,10 +492,71 @@ function updateTrackName(index) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+//  P10 — USER MIDI UPLOAD
+// ─────────────────────────────────────────────────────────────────
+// The file is read entirely in memory and passed directly to the
+// sequencer. Nothing is uploaded to any server. The file is gone
+// on page reload and does not affect the permanent track list.
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB guard
+
+async function handleUpload() {
+  const file = ui.fileInput.files[0];
+  if (!file) return;
+
+  // Reset input so the same file can be re-uploaded if needed
+  ui.fileInput.value = '';
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    setStatus('⚠ File too large (max 5 MB)');
+    return;
+  }
+
+  playUiSound();
+  setStatus('Loading uploaded file…');
+
+  await ensureAudioContext();
+
+  let arrayBuf;
+  try {
+    arrayBuf = await file.arrayBuffer();
+  } catch (e) {
+    setStatus('⚠ Could not read file');
+    console.error(e);
+    return;
+  }
+
+  try {
+    const song = { binary: arrayBuf, midiName: file.name };
+    seq.loadNewSongList([song]);
+    songLoaded = true;
+
+    // Stamp _currentSong with the filename (without extension) so easter
+    // egg triggers still work — e.g. uploading i_feel_pretty_1957_-_bernstein.mid
+    // will show the Minecraft overlay. This is intentional.
+    window._currentSong = file.name.replace(/\.midi?$/i, '');
+
+    const displayName = file.name.replace(/\.midi?$/i, '').replace(/[_\-]+/g, ' ');
+    ui.trackName.textContent = '♪  ' + displayName;
+    // Don't update ui.list.value — the upload is a transient track outside the list.
+    // Prev/next will return to the permanent list correctly.
+
+    seq.play();
+    playing = true;
+    ui.play.innerHTML = '&#9646;&#9646;';
+    setStatus('Playing uploaded file');
+    if (window.onMusicPlay) window.onMusicPlay();
+    startSeekLoop();
+  } catch (e) {
+    setStatus('⚠ Invalid MIDI file');
+    console.error('[MusicPlayer] Upload failed:', e);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
 //  SEEK BAR LOOP
 // ─────────────────────────────────────────────────────────────────
 let seekLoopRunning = false;
-let isSeeking       = false;   // true while user drags the seek thumb
+let isSeeking       = false;
 
 function startSeekLoop() {
   if (seekLoopRunning) return;
@@ -419,7 +565,6 @@ function startSeekLoop() {
   function tick() {
     if (!seq || !playing) { seekLoopRunning = false; return; }
 
-    // Auto-advance when song finishes naturally — always autoPlay the next track
     if (seq.isFinished) {
       playing = false;
       ui.play.innerHTML = '&#9654;';
@@ -428,14 +573,13 @@ function startSeekLoop() {
       if (window.onMusicEnd) window.onMusicEnd();
       const idx = (current + 1) % tracks.length;
       console.log('[MusicPlayer]   → auto-advancing to index:', idx, '|', tracks[idx]);
-      loadTrack(idx, true);   // true = always autoPlay on natural song end
+      loadTrack(idx, true);
       return;
     }
 
-    // Don't move the thumb while the user is dragging it
     if (!isSeeking) {
-      const cur      = seq.currentTime  || 0;
-      const total    = seq.duration     || 0;
+      const cur   = seq.currentTime || 0;
+      const total = seq.duration    || 0;
       if (total > 0) {
         const progress = Math.min(cur / total, 1);
         ui.seek.value            = Math.round(progress * 1000);
@@ -453,15 +597,11 @@ function startSeekLoop() {
 //  PUBLIC API
 // ─────────────────────────────────────────────────────────────────
 window.musicPlayer = {
-  play() {
-    if (!playing) togglePlay();
-  },
-  pause() {
-    if (playing) togglePlay();
-  },
-  next: nextTrack,
-  prev: prevTrack,
-  shuffle: shuffleTrack,
+  play()  { if (!playing) togglePlay(); },
+  pause() { if (playing)  togglePlay(); },
+  next:      nextTrack,
+  prev:      prevTrack,
+  shuffle:   shuffleTrack,
   isPlaying: () => playing,
 };
 

@@ -563,95 +563,106 @@ function toggleLid() {
   }
 }
 
-// ── Crank drag ────────────────────────────────
-canvas.addEventListener('mousemove', e => {
+
+// ─────────────────────────────────────────────
+//  INTERACTION — Pointer Events (mouse + touch + stylus)
+//
+//  P1: Using the Pointer Events API instead of mouse-only events means
+//  the crank drag works correctly on touchscreens without any extra code.
+//  pointer capture keeps the drag live even if the finger leaves the canvas.
+//  touch-action: none (set in CSS) prevents the browser hijacking the touch
+//  for scrolling while a drag is in progress.
+// ─────────────────────────────────────────────
+
+canvas.style.touchAction = 'none'; // prevent browser scroll hijack during drag
+
+canvas.addEventListener('pointermove', e => {
   if (isDragging) {
-  const dx = e.clientX - lastMouseX;
-  const dy = e.clientY - lastMouseY;
-  lastMouseX = e.clientX;
-  lastMouseY = e.clientY;
+    const dx = e.clientX - lastMouseX;
+    const dy = e.clientY - lastMouseY;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
 
-  const action = window.musicBoxAnimations.crank_spin;
-  if (action) {
-  const duration  = action.getClip().duration;
-  const timePerPx = duration / CONFIG.DRAG_PX_PER_REV;
+    const action = window.musicBoxAnimations.crank_spin;
+    if (action) {
+      const duration  = action.getClip().duration;
+      const timePerPx = duration / CONFIG.DRAG_PX_PER_REV;
 
-  // Bug 3: accept up OR down drag on the vertical axis (abs), 
-  // and left stroke on horizontal. Use dominant axis to avoid double-counting.
-  const vertDelta = Math.abs(dy);
-  const horizDelta = Math.max(0, -dx); // only leftward counts horizontally
-  const forwardDelta = vertDelta >= Math.abs(dx) ? vertDelta : horizDelta;
+      const vertDelta  = Math.abs(dy);
+      const horizDelta = Math.max(0, -dx);
+      const forwardDelta = vertDelta >= Math.abs(dx) ? vertDelta : horizDelta;
 
-  windAccum += forwardDelta;
+      windAccum += forwardDelta;
 
-  // Bug 2: ensure action is initialized in the mixer before scrubbing.
-  // An action that was never play()'d has no mixer binding and setting
-  // .time on it does nothing visible. Play+pause to register it.
-  if (!action.isRunning() && !_initializedActions.has(action)) {
-  action.reset();
-  action.enabled = true;
-  action.setLoop(THREE.LoopRepeat, Infinity);
-  action.play();
-  action.paused = true;
-  _initializedActions.add(action);
-  mixer && mixer.update(0);
-  }
+      if (!action.isRunning() && !_initializedActions.has(action)) {
+        action.reset();
+        action.enabled = true;
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.play();
+        action.paused = true;
+        _initializedActions.add(action);
+        mixer && mixer.update(0);
+      }
 
-  action.time  = (action.time + forwardDelta * timePerPx) % duration;
-  action.paused = true;
-  mixer && mixer.update(0);
-  }
-
+      action.time   = (action.time + forwardDelta * timePerPx) % duration;
+      action.paused = true;
+      mixer && mixer.update(0);
+    }
   } else {
-  const overCrank = hitTest(e, crankMeshes);
-  const overLid  = hitTest(e, lidMeshes);
-  canvas.style.cursor = overCrank ? 'grab' : (overLid ? 'pointer' : 'default');
+    // Only update cursor on non-touch pointers — touch has no visible cursor
+    if (e.pointerType !== 'touch') {
+      const overCrank = hitTest(e, crankMeshes);
+      const overLid   = hitTest(e, lidMeshes);
+      canvas.style.cursor = overCrank ? 'grab' : (overLid ? 'pointer' : 'default');
+    }
   }
 });
 
-canvas.addEventListener('mousedown', e => {
+canvas.addEventListener('pointerdown', e => {
   const overCrank = hitTest(e, crankMeshes);
-  const overLid  = hitTest(e, lidMeshes);
+  const overLid   = hitTest(e, lidMeshes);
 
   if (overCrank) {
-  isDragging  = true;
-  lastMouseX  = e.clientX;
-  lastMouseY  = e.clientY;
-  canvas.style.cursor = 'grabbing';
-  const action = window.musicBoxAnimations.crank_spin;
-  if (action) action.paused = true;
-  const idleAction = window.musicBoxAnimations.idle;
-  if (idleAction) idleAction.stop();
-  if (window.musicPlayer && window.musicPlayer.isPlaying()) {
-  window.musicPlayer.pause();
-  }
-  windAccum = 0;
-  hasPlayed = false;
+    // Capture the pointer so pointermove keeps firing even if finger
+    // leaves the canvas element bounds during a fast drag.
+    canvas.setPointerCapture(e.pointerId);
+
+    isDragging  = true;
+    lastMouseX  = e.clientX;
+    lastMouseY  = e.clientY;
+    if (e.pointerType !== 'touch') canvas.style.cursor = 'grabbing';
+
+    const action = window.musicBoxAnimations.crank_spin;
+    if (action) action.paused = true;
+    const idleAction = window.musicBoxAnimations.idle;
+    if (idleAction) idleAction.stop();
+    if (window.musicPlayer && window.musicPlayer.isPlaying()) {
+      window.musicPlayer.pause();
+    }
+    windAccum = 0;
+    hasPlayed = false;
   } else if (overLid) {
-  toggleLid();
+    toggleLid();
   }
 });
 
-window.addEventListener('mouseup', () => {
+window.addEventListener('pointerup', e => {
   if (!isDragging) return;
-  isDragging  = false;
-  canvas.style.cursor = 'default';
+  isDragging = false;
+  if (e.pointerType !== 'touch') canvas.style.cursor = 'default';
 
-  // #1: Trigger play only when the user releases the crank, not during drag
   const windsCompleted = windAccum / CONFIG.DRAG_PX_PER_REV;
-
   if (windsCompleted >= CONFIG.WINDS_TO_PLAY && !hasPlayed) {
-  hasPlayed = true;
-  if (window.musicPlayer) window.musicPlayer.play();
-  } else {
-  // Do NOT call setCrankSpinning here — that is onMusicPlay's job.
-  // Calling it here risks fighting the lid/crank state managed by the callbacks.
+    hasPlayed = true;
+    if (window.musicPlayer) window.musicPlayer.play();
   }
 });
 
-// ─────────────────────────────────────────────
-//  MESH REGISTRARS
-// ─────────────────────────────────────────────
+
+
+
+
+
 window._registerCrankMeshes = function(root) {
   crankMeshes = [];
   root.traverse(child => {
@@ -735,144 +746,202 @@ window.addEventListener('resize', () => {
 
 <!-- ─────────────────────────────────────────────
   NOTE PARTICLE SYSTEM
-  Goal 1: Random color tinting from palette.
-  Particles drawn in a blended tint of the chosen
-  color (mixed with white) so they aren't fully flat.
+  P9: Minecraft-style note particles.
+  Pitch (0–24) maps to a full HSV hue sweep exactly as Minecraft does.
+  Sprite is a grayscale note texture tinted per-particle via canvas compositing.
+  Falls back to text glyph if the sprite hasn't loaded yet.
 ──────────────────────────────────────────────── -->
 <script>
 (function() {
   const noteCanvas = document.getElementById('note-canvas');
-  const ctx  = noteCanvas.getContext('2d');
+  const ctx = noteCanvas.getContext('2d');
 
-  // Match size to container
   function resizeNoteCanvas() {
-  noteCanvas.width  = container.clientWidth;
-  noteCanvas.height = container.clientHeight;
+    noteCanvas.width  = container.clientWidth;
+    noteCanvas.height = container.clientHeight;
   }
   resizeNoteCanvas();
   window.addEventListener('resize', resizeNoteCanvas);
 
-  // Goal 1: Color palette
-  const PARTICLE_PALETTE = [
-  '#77D700','#95C000','#B2A500','#CC8600','#E26500',
-  '#F34100','#FC1E00','#FE000F','#F70033','#E8005A',
-  '#CF0083','#AE00A9','#8600CC'
-  ];
-
-  // Parse a hex color into [r, g, b]
-  function hexToRGB(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  // ── P9: Minecraft pitch→color mapping ────────────────────────────
+  // Minecraft maps note block pitch (0–24) to a full HSV hue rotation.
+  // hue = (pitch / 24) * 360 degrees, S=1, V=1 → fully saturated rainbow.
+  // We use pitch % 25 to wrap any MIDI note (0–127) into the 0–24 range.
+  function pitchToRGB(pitch) {
+    const hue = ((pitch % 25) / 24) * 360;
+    const h = hue / 60;
+    const i = Math.floor(h);
+    const f = h - i;
+    const q = 1 - f;
+    const t = f;
+    const table = [
+      [1, t, 0], [q, 1, 0], [0, 1, t],
+      [0, q, 1], [t, 0, 1], [1, 0, q]
+    ];
+    const [r, g, b] = table[i % 6];
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
   }
 
-  // Blend color with white at given strength (0=white, 1=full color)
-  // Returns an rgba() string respecting particle alpha
-  function tintedColor(rgb, strength, alpha) {
-  const r = Math.round(rgb[0] * strength + 255 * (1 - strength));
-  const g = Math.round(rgb[1] * strength + 255 * (1 - strength));
-  const b = Math.round(rgb[2] * strength + 255 * (1 - strength));
-  return `rgba(${r},${g},${b},${alpha})`;
-  }
+  // ── Sprite loading ─────────────────────────────────────────────
+  // The sprite should be a small grayscale PNG (white note on transparent bg).
+  // Color is applied entirely by the tinting composite below — the sprite
+  // itself must be white/grey, not colored.
+  const SPRITE_PATH = './textures/note_particle.png';
+  let noteSprite = null;
 
+  const spriteImg = new Image();
+  spriteImg.onload = () => { noteSprite = spriteImg; };
+  spriteImg.onerror = () => {
+    console.warn('[Particles] note_particle.png not found — using text glyph fallback');
+  };
+  spriteImg.src = SPRITE_PATH;
+
+  // ── Fallback text glyphs (used if sprite not loaded) ──────────
   const NOTES_GLYPHS = ['♩','♪','♫','♬'];
-  const particles  = [];
-  let  isPlaying  = false;
-  let  spawnTimer  = 0;
+
+  const particles = [];
+  let isPlaying   = false;
+  let spawnTimer  = 0;
 
   const SPAWN_INTERVAL_MS = 400;
   const SPAWN_X_MIN = 0.3;
   const SPAWN_X_MAX = 0.7;
-  const SPAWN_Y  = 0.45;
+  const SPAWN_Y     = 0.45;
 
-  function spawnNote() {
-  const x  = (SPAWN_X_MIN + Math.random() * (SPAWN_X_MAX - SPAWN_X_MIN)) * noteCanvas.width;
-  const y  = SPAWN_Y * noteCanvas.height;
-  const hex = PARTICLE_PALETTE[Math.floor(Math.random() * PARTICLE_PALETTE.length)];
-  particles.push({
-  x,
-  y,
-  glyph  : NOTES_GLYPHS[Math.floor(Math.random() * NOTES_GLYPHS.length)],
-  size  : 14 + Math.random() * 14,
-  vx  : (Math.random() - 0.5) * 0.6,
-  vy  : -(0.5 + Math.random() * 0.8),
-  alpha  : 1,
-  fadeRate: 0.004 + Math.random() * 0.004,
-  wobble  : Math.random() * Math.PI * 2,
-  wobbleAmp: 0.3 + Math.random() * 0.5,
-  rgb  : hexToRGB(hex),  // Goal 1: per-particle color
-  });
+  // If SpessaSynth exposes a per-note callback, wire it here to get real pitch data.
+  // Until then, we pick a random pitch for each particle — still produces the full
+  // Minecraft rainbow, just without pitch correlation to the actual notes playing.
+  function spawnNote(pitch) {
+    const usePitch = (pitch !== undefined) ? pitch : Math.floor(Math.random() * 25);
+    const x = (SPAWN_X_MIN + Math.random() * (SPAWN_X_MAX - SPAWN_X_MIN)) * noteCanvas.width;
+    const y = SPAWN_Y * noteCanvas.height;
+    particles.push({
+      x,
+      y,
+      pitch    : usePitch,
+      rgb      : pitchToRGB(usePitch),
+      glyph    : NOTES_GLYPHS[Math.floor(Math.random() * NOTES_GLYPHS.length)],
+      size     : 14 + Math.random() * 14,
+      vx       : (Math.random() - 0.5) * 0.6,
+      vy       : -(0.5 + Math.random() * 0.8),
+      alpha    : 1,
+      fadeRate : 0.004 + Math.random() * 0.004,
+      wobble   : Math.random() * Math.PI * 2,
+      wobbleAmp: 0.3 + Math.random() * 0.5,
+    });
+  }
+
+  // ── Tinted sprite draw ──────────────────────────────────────────
+  // Three-pass composite: draw grayscale sprite, multiply tint color over it,
+  // then use the original sprite's alpha as a mask to cut out the background.
+  // Result: the white parts of the sprite take the full tint color.
+  function drawTintedSprite(p) {
+    const s = p.size;
+    const x = p.x - s / 2;
+    const y = p.y - s / 2;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.alpha);
+
+    // Pass 1: draw grayscale sprite at normal opacity
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(noteSprite, x, y, s, s);
+
+    // Pass 2: multiply the tint color over it (darkens + shifts hue)
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = `rgb(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]})`;
+    ctx.fillRect(x, y, s, s);
+
+    // Pass 3: mask to the original sprite's alpha so the bg stays transparent
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(noteSprite, x, y, s, s);
+
+    // Glow — drawn on top in screen mode so it doesn't affect the mask
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowColor = `rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},0.7)`;
+    ctx.shadowBlur  = 10;
+    ctx.drawImage(noteSprite, x, y, s, s);
+
+    ctx.restore();
+  }
+
+  // ── Text glyph fallback draw ────────────────────────────────────
+  function drawGlyphFallback(p) {
+    const [r, g, b] = p.rgb;
+    // Blend 65% toward white so it's not overly saturated, matching old behavior
+    const tr = Math.round(r * 0.65 + 255 * 0.35);
+    const tg = Math.round(g * 0.65 + 255 * 0.35);
+    const tb = Math.round(b * 0.65 + 255 * 0.35);
+
+    ctx.save();
+    ctx.globalAlpha  = Math.max(0, p.alpha);
+    ctx.font         = `${p.size}px serif`;
+    ctx.fillStyle    = `rgba(${tr},${tg},${tb},${p.alpha})`;
+    ctx.shadowColor  = `rgba(${r},${g},${b},0.7)`;
+    ctx.shadowBlur   = 8;
+    ctx.fillText(p.glyph, p.x, p.y);
+    ctx.restore();
   }
 
   let lastTime = null;
 
   function tickNotes(timestamp) {
-  requestAnimationFrame(tickNotes);
+    requestAnimationFrame(tickNotes);
 
-  const dt = lastTime ? timestamp - lastTime : 16;
-  lastTime = timestamp;
+    const dt = lastTime ? timestamp - lastTime : 16;
+    lastTime = timestamp;
 
-  if (isPlaying) {
-  spawnTimer += dt;
-  if (spawnTimer >= SPAWN_INTERVAL_MS) {
-  spawnTimer = 0;
-  spawnNote();
-  if (Math.random() < 0.25) spawnNote();
-  }
-  }
+    if (isPlaying) {
+      spawnTimer += dt;
+      if (spawnTimer >= SPAWN_INTERVAL_MS) {
+        spawnTimer = 0;
+        spawnNote();
+        if (Math.random() < 0.25) spawnNote();
+      }
+    }
 
-  ctx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
+    ctx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
 
-  for (let i = particles.length - 1; i >= 0; i--) {
-  const p = particles[i];
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.wobble += 0.03;
+      p.x      += p.vx + Math.sin(p.wobble) * p.wobbleAmp;
+      p.y      += p.vy;
+      p.alpha  -= p.fadeRate;
 
-  p.wobble += 0.03;
-  p.x  += p.vx + Math.sin(p.wobble) * p.wobbleAmp;
-  p.y  += p.vy;
-  p.alpha  -= p.fadeRate;
+      if (p.alpha <= 0) { particles.splice(i, 1); continue; }
 
-  if (p.alpha <= 0) {
-  particles.splice(i, 1);
-  continue;
-  }
-
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, p.alpha);
-  ctx.font  = `${p.size}px serif`;
-
-  // Goal 1: fill with blended tint (65% color + 35% white = not fully saturated)
-  ctx.fillStyle  = tintedColor(p.rgb, 0.65, p.alpha);
-
-  // Goal 1: shadow glow uses the pure color for depth/contrast
-  ctx.shadowColor = `rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},0.7)`;
-  ctx.shadowBlur  = 8;
-
-  ctx.fillText(p.glyph, p.x, p.y);
-  ctx.restore();
-  }
+      if (noteSprite) {
+        drawTintedSprite(p);
+      } else {
+        drawGlyphFallback(p);
+      }
+    }
   }
 
   requestAnimationFrame(tickNotes);
 
-  // Chain onto existing music callbacks
+  // ── Music callback chain ────────────────────────────────────────
   const _origPlay  = window.onMusicPlay;
   const _origPause = window.onMusicPause;
-  const _origEnd  = window.onMusicEnd;
+  const _origEnd   = window.onMusicEnd;
 
   window.onMusicPlay = () => {
-  isPlaying = true;
-  if (_origPlay) _origPlay();
+    isPlaying = true;
+    if (_origPlay) _origPlay();
   };
-
   window.onMusicPause = () => {
-  isPlaying = false;
-  if (_origPause) _origPause();
+    isPlaying = false;
+    if (_origPause) _origPause();
+  };
+  window.onMusicEnd = () => {
+    isPlaying = false;
+    if (_origEnd) _origEnd();
   };
 
-  // Bug #5: when a song ends, reset state so the next song auto-starts cleanly
-  window.onMusicEnd = () => {
-  isPlaying = false;
-  if (_origEnd) _origEnd();
-  };
+  // Expose spawnNote globally so future systems (e.g. SpessaSynth note-on
+  // callback) can pass a real pitch value: window._spawnNoteParticle(pitch)
+  window._spawnNoteParticle = spawnNote;
 })();
 </script>
 
