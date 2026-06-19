@@ -17,10 +17,13 @@ let context       = null;
 let synth         = null;
 let seq           = null;
 let tracks        = [];
+let trackMeta     = [];   // [{ index, path, title, artist, year }] — for search/sort
 let current       = 0;
 let ready         = false;
 let playing       = false;
 let songLoaded    = false;
+let browseSort    = 'title';
+let browseOpen    = false;
 
 // P5: Volume is stored as a slider position (0–1), converted to gain via
 // a 4th-power curve on the way to the synth. This makes the slider feel
@@ -88,7 +91,8 @@ function buildUI() {
       <input id="mp-vol" type="range" min="0" max="1" value="${pendingSlider}" step="0.01"/>
     </div>
     <div id="mp-list-row">
-      <select id="mp-list"></select>
+      <button id="mp-browse-btn" title="Browse songs">🎵 Browse</button>
+      <button id="mp-share-btn" title="Copy link to this song">🔗</button>
       <label id="mp-upload-btn" title="Play your own MIDI file" tabindex="0">↑
         <input id="mp-file" type="file" accept=".mid,.midi" style="display:none"/>
       </label>
@@ -171,23 +175,34 @@ function buildUI() {
       align-items: center;
       gap: 6px;
     }
-    #mp-list {
+    #mp-browse-btn {
       flex: 1;
       min-width: 0;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 6px;
       color: #e8d5a3;
       font-family: monospace;
       font-size: 11px;
-      padding: 4px 6px;
+      padding: 6px 8px;
       cursor: pointer;
-      max-height: 28px;
-      max-width: 100%;
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: background 0.15s;
     }
-    #mp-list option { background: #1a0e08; }
+    #mp-browse-btn:hover { background: rgba(255,255,255,0.14); }
+    #mp-share-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #e8d5a3;
+      font-size: 13px;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #mp-share-btn:hover { background: rgba(255,255,255,0.14); }
     /* P10: Upload MIDI button */
     #mp-upload-btn {
       background: rgba(255,255,255,0.06);
@@ -210,6 +225,125 @@ function buildUI() {
       letter-spacing: 0.06em;
       min-height: 14px;
     }
+
+    /* ── Song browser overlay ── */
+    #mp-browse-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 200;
+      padding: 20px;
+    }
+    #mp-browse-overlay.visible { opacity: 1; pointer-events: auto; }
+    #mp-browse-panel {
+      background: rgba(20,12,8,0.97);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 460px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      font-family: monospace;
+      color: #e8d5a3;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+    #mp-browse-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 14px 10px;
+    }
+    #mp-search {
+      flex: 1;
+      min-width: 0;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #e8d5a3;
+      font-family: monospace;
+      font-size: 13px;
+      padding: 8px 10px;
+    }
+    #mp-search:focus { outline: 1px solid rgba(200,168,90,0.5); }
+    #mp-browse-close {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #e8d5a3;
+      font-size: 14px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    #mp-browse-close:hover { background: rgba(255,255,255,0.14); }
+    #mp-sort-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 14px 10px;
+      font-size: 11px;
+      opacity: 0.85;
+    }
+    .mp-sort-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 5px;
+      color: #e8d5a3;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .mp-sort-btn:hover { background: rgba(255,255,255,0.12); }
+    .mp-sort-btn.active {
+      background: rgba(200,168,90,0.22);
+      border-color: rgba(200,168,90,0.5);
+      color: #c8a85a;
+    }
+    #mp-results-count {
+      font-size: 10px;
+      opacity: 0.5;
+      padding: 0 14px 6px;
+    }
+    #mp-results {
+      flex: 1;
+      overflow-y: auto;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .mp-result-item {
+      padding: 9px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.12s;
+    }
+    .mp-result-item:hover { background: rgba(255,255,255,0.07); }
+    .mp-result-item.playing { background: rgba(200,168,90,0.14); }
+    .mp-result-title {
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mp-result-meta {
+      font-size: 10px;
+      opacity: 0.55;
+      margin-top: 2px;
+    }
+    #mp-no-results {
+      padding: 24px 14px;
+      text-align: center;
+      font-size: 12px;
+      opacity: 0.5;
+    }
   `;
   document.head.appendChild(style);
 
@@ -224,20 +358,180 @@ function buildUI() {
     timeCur   : panel.querySelector('#mp-time-cur'),
     timeTotal : panel.querySelector('#mp-time-total'),
     vol       : panel.querySelector('#mp-vol'),
-    list      : panel.querySelector('#mp-list'),
+    browseBtn : panel.querySelector('#mp-browse-btn'),
+    shareBtn  : panel.querySelector('#mp-share-btn'),
     uploadBtn : panel.querySelector('#mp-upload-btn'),
     fileInput : panel.querySelector('#mp-file'),
     status    : panel.querySelector('#mp-status'),
   };
 
   setControlsEnabled(false);
+  buildBrowsePanel();
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  BUILD SONG BROWSER (search + sort overlay)
+// ─────────────────────────────────────────────────────────────────
+function buildBrowsePanel() {
+  const overlay = document.createElement('div');
+  overlay.id = 'mp-browse-overlay';
+  overlay.innerHTML = `
+    <div id="mp-browse-panel" role="dialog" aria-label="Song browser">
+      <div id="mp-browse-header">
+        <input id="mp-search" type="text" placeholder="Search title or composer…" autocomplete="off"/>
+        <button id="mp-browse-close" title="Close">✕</button>
+      </div>
+      <div id="mp-sort-row">
+        <span>Sort</span>
+        <button class="mp-sort-btn" data-sort="title">Title</button>
+        <button class="mp-sort-btn" data-sort="artist">Artist</button>
+        <button class="mp-sort-btn" data-sort="year">Year</button>
+      </div>
+      <div id="mp-results-count"></div>
+      <div id="mp-results"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  ui.browseOverlay = overlay;
+  ui.search       = overlay.querySelector('#mp-search');
+  ui.browseClose  = overlay.querySelector('#mp-browse-close');
+  ui.sortBtns     = [...overlay.querySelectorAll('.mp-sort-btn')];
+  ui.results      = overlay.querySelector('#mp-results');
+  ui.resultsCount = overlay.querySelector('#mp-results-count');
+
+  ui.browseBtn.addEventListener('click', () => { playUiSound(); openBrowse(); });
+  ui.shareBtn.addEventListener('click', copyShareLink);
+  ui.browseClose.addEventListener('click', closeBrowse);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeBrowse(); });
+  ui.search.addEventListener('input', renderResults);
+  ui.sortBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sort === browseSort);
+    btn.addEventListener('click', () => {
+      browseSort = btn.dataset.sort;
+      ui.sortBtns.forEach(b => b.classList.toggle('active', b === btn));
+      renderResults();
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && browseOpen) closeBrowse();
+  });
+}
+
+function openBrowse() {
+  browseOpen = true;
+  ui.browseOverlay.classList.add('visible');
+  ui.search.value = '';
+  renderResults();
+  setTimeout(() => ui.search.focus(), 50);
+}
+
+function closeBrowse() {
+  browseOpen = false;
+  ui.browseOverlay.classList.remove('visible');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function renderResults() {
+  const q = ui.search.value.trim().toLowerCase();
+
+  let list = trackMeta.filter(t => {
+    if (!q) return true;
+    return t.title.toLowerCase().includes(q)
+        || t.artist.toLowerCase().includes(q)
+        || String(t.year || '').includes(q);
+  });
+
+  list = list.slice().sort((a, b) => {
+    if (browseSort === 'artist') {
+      const ar = (a.artist || '\uffff').localeCompare(b.artist || '\uffff');
+      return ar !== 0 ? ar : a.title.localeCompare(b.title);
+    }
+    if (browseSort === 'year') {
+      const ay = a.year ?? 9999, by = b.year ?? 9999;
+      return ay !== by ? ay - by : a.title.localeCompare(b.title);
+    }
+    return a.title.localeCompare(b.title); // 'title' (default)
+  });
+
+  ui.resultsCount.textContent = `${list.length} song${list.length === 1 ? '' : 's'}`;
+
+  if (list.length === 0) {
+    ui.results.innerHTML = `<div id="mp-no-results">No songs match “${escapeHtml(ui.search.value)}”</div>`;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  list.forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'mp-result-item' + (t.index === current ? ' playing' : '');
+    const titleText = t.title || friendlyName(t.path);
+    item.innerHTML = `
+      <div class="mp-result-title">${t.index === current ? '♪ ' : ''}${escapeHtml(titleText)}</div>
+      <div class="mp-result-meta">${escapeHtml(t.artist || '—')}${t.year ? ' · ' + t.year : ''}</div>
+    `;
+    item.addEventListener('click', () => {
+      playUiSound();
+      loadTrack(t.index, true);
+      closeBrowse();
+    });
+    frag.appendChild(item);
+  });
+  ui.results.innerHTML = '';
+  ui.results.appendChild(frag);
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  SHARE LINKS — deep-link to a specific song via ?song=<slug>
+// ─────────────────────────────────────────────────────────────────
+function slugFor(index) {
+  return (tracks[index] || '').split('/').pop().replace(/\.midi?$/i, '');
+}
+
+function findIndexBySlug(slug) {
+  return tracks.findIndex(p => p.split('/').pop().replace(/\.midi?$/i, '') === slug);
+}
+
+function shareUrlFor(index) {
+  const url = new URL(location.href);
+  url.search = '';
+  url.searchParams.set('song', slugFor(index));
+  return url.toString();
+}
+
+// Keep the address bar in sync with the playing track so users can also
+// just copy the URL bar directly — the share button is a convenience on top.
+function syncUrlToTrack(index) {
+  try {
+    history.replaceState(null, '', shareUrlFor(index));
+  } catch (e) { /* non-fatal, e.g. file:// or sandboxed contexts */ }
+}
+
+async function copyShareLink() {
+  playUiSound();
+  const url = shareUrlFor(current);
+  const prevStatus = ui.status.textContent;
+  try {
+    await navigator.clipboard.writeText(url);
+    setStatus('Link copied ✓');
+  } catch (e) {
+    window.prompt('Copy this link:', url); // clipboard API unavailable — manual fallback
+    setStatus(prevStatus);
+    return;
+  }
+  setTimeout(() => setStatus(prevStatus), 1800);
 }
 
 // ─────────────────────────────────────────────────────────────────
 //  HELPERS
 // ─────────────────────────────────────────────────────────────────
 function setControlsEnabled(on) {
-  [ui.play, ui.prev, ui.next, ui.shuffle, ui.seek, ui.list].forEach(el => {
+  [ui.play, ui.prev, ui.next, ui.shuffle, ui.seek, ui.browseBtn, ui.shareBtn].forEach(el => {
     if (el) el.disabled = !on;
   });
 }
@@ -255,6 +549,38 @@ function friendlyName(path) {
     .replace(/\.[^.]+$/, '')
     .replace(/[_\-]+/g, ' ')
     .trim();
+}
+
+// ── Metadata parsing for search/sort ─────────────────────────────
+// Filenames generally follow: title_YEAR_-_artist.mid (with some
+// variation in separators and trailing catalog/roll numbers). This is
+// a best-effort heuristic extracted from the filename only — there's
+// no real metadata source — so it won't be 100% accurate for every
+// track, but it's good enough to power search, and sort-by-artist /
+// sort-by-year groupings.
+const YEAR_RE = /(1[5-9]\d{2}|20\d{2})/;
+const CATALOG_SUFFIX_RE = /_(qrs|vocalstyle|royal|duoart|ampico|mastertouch|electra|broadwaymusicroll|melographic|reliance|weltedeluxe|imperial)_?\w*$/i;
+
+function parseMeta(path) {
+  const base = path.split('/').pop().replace(/\.midi?$/i, '');
+  const m = YEAR_RE.exec(base);
+
+  if (!m) {
+    return { title: base.replace(/[_\-]+/g, ' ').trim(), artist: '', year: null };
+  }
+
+  const year = parseInt(m[0], 10);
+  const before = base.slice(0, m.index);
+  let after = base.slice(m.index + m[0].length);
+
+  const title = before.replace(/[_\-]+$/, '').replace(/[_\-]+/g, ' ').trim();
+
+  after = after.replace(/^[_\-]+/, '');
+  after = after.replace(/_\d+$/, '');          // trailing "_2"/"_3" duplicate-version marker
+  after = after.replace(CATALOG_SUFFIX_RE, ''); // trailing piano-roll/catalog brand+number
+  const artist = after.replace(/[_\-]+/g, ' ').trim();
+
+  return { title, artist, year };
 }
 
 function setStatus(msg) {
@@ -285,21 +611,25 @@ async function init() {
   }
 
   tracks.forEach((path, i) => {
-    const opt = document.createElement('option');
-    opt.value = i;
-    const name = friendlyName(path);
-    // Truncate long names so the dropdown never blows out of the panel
-    opt.textContent = name.length > 42 ? name.slice(0, 40) + '…' : name;
-    opt.title = name; // full name on hover
-    ui.list.appendChild(opt);
+    trackMeta.push({ index: i, path, ...parseMeta(path) });
   });
+  if (ui.browseBtn) ui.browseBtn.textContent = `🎵 Browse (${tracks.length})`;
 
-  // Start on a random track
-  if (tracks.length > 1) {
+  // Deep-link support: ?song=<slug> selects a specific track on load.
+  // <slug> is the MIDI filename without its extension, e.g.
+  //   ?song=tico-tico_no_fuba_1917_-_abreu
+  // Falls back to a random track if the param is absent or unrecognized.
+  const params = new URLSearchParams(location.search);
+  const requestedSlug = params.get('song');
+  const requestedIndex = requestedSlug ? findIndexBySlug(requestedSlug) : -1;
+
+  if (requestedIndex !== -1) {
+    current = requestedIndex;
+  } else if (tracks.length > 1) {
     current = Math.floor(Math.random() * tracks.length);
   }
-  ui.list.value = current;
   updateTrackName(current);
+  syncUrlToTrack(current);
 
   // 2. Load soundfont
   setStatus('Loading soundfont…');
@@ -318,7 +648,6 @@ async function init() {
   ui.play.addEventListener('click', () => { playUiSound(); togglePlay(); });
   ui.prev.addEventListener('click', () => { playUiSound(); prevTrack(); });
   ui.next.addEventListener('click', () => { playUiSound(); nextTrack(); });
-  ui.list.addEventListener('change', () => { playUiSound(); loadTrack(Number(ui.list.value), true); });
   ui.shuffle.addEventListener('click', () => { playUiSound(); shuffleTrack(); });
 
   // P5: slider value → 4th-power gain curve
@@ -430,7 +759,8 @@ async function togglePlay() {
 async function loadTrack(index, autoPlay = true) {
   if (!tracks[index]) return;
   current = index;
-  ui.list.value = index;
+  syncUrlToTrack(index);
+  if (browseOpen) renderResults();
   updateTrackName(index);
 
   if (!context) {
@@ -544,8 +874,9 @@ async function handleUpload() {
 
     const displayName = file.name.replace(/\.midi?$/i, '').replace(/[_\-]+/g, ' ');
     ui.trackName.textContent = '♪  ' + displayName;
-    // Don't update ui.list.value — the upload is a transient track outside the list.
-    // Prev/next will return to the permanent list correctly.
+    // Don't touch the deep-link URL or browse highlight — the upload is a
+    // transient track outside the permanent list. Prev/next still return
+    // to the permanent list correctly.
 
     seq.play();
     playing = true;
