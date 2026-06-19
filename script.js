@@ -76,7 +76,7 @@ function buildUI() {
       <button id="mp-prev"    title="Previous">&#9664;&#9664;</button>
       <button id="mp-play"    title="Play / Pause">&#9654;</button>
       <button id="mp-next"    title="Next">&#9654;&#9654;</button>
-      <button id="mp-shuffle" title="Shuffle">⇄</button>
+      <button id="mp-shuffle" title="Shuffle">?</button>
     </div>
     <div id="mp-seek-row">
       <span id="mp-time-cur">0:00</span>
@@ -173,6 +173,7 @@ function buildUI() {
     }
     #mp-list {
       flex: 1;
+      min-width: 0;
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 6px;
@@ -182,6 +183,9 @@ function buildUI() {
       padding: 4px 6px;
       cursor: pointer;
       max-height: 28px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     #mp-list option { background: #1a0e08; }
     /* P10: Upload MIDI button */
@@ -283,7 +287,10 @@ async function init() {
   tracks.forEach((path, i) => {
     const opt = document.createElement('option');
     opt.value = i;
-    opt.textContent = friendlyName(path);
+    const name = friendlyName(path);
+    // Truncate long names so the dropdown never blows out of the panel
+    opt.textContent = name.length > 42 ? name.slice(0, 40) + '…' : name;
+    opt.title = name; // full name on hover
     ui.list.appendChild(opt);
   });
 
