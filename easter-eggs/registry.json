@@ -8,5 +8,20 @@
     "id": "carrotfield",
     "trigger": "dixieland_delight_1983_-_rogers",
     "module": "./carrotfield/index.js"
+  },
+  {
+    "id": "green",
+    "trigger": "greensleeves_1500s_-_traditional",
+    "module": "./green/index.js"
+  },
+  {
+    "id": "office",
+    "trigger": "the_office_theme_2011_-_ferguson",
+    "module": "./office/index.js"
+  },
+  {
+    "id": "lab",
+    "trigger": "hip_to_be_square_1986_-_lewis",
+    "module": "./lab/index.js"
   }
 ]
