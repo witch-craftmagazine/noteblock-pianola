@@ -2,11 +2,11 @@
   {
     "id": "minecraft",
     "trigger": "i_feel_pretty_1957_-_bernstein",
-    "module": "./easter-eggs/minecraft/index.js"
+    "module": "./minecraft/index.js"
   },
   {
     "id": "carrotfield",
     "trigger": "dixieland_delight_1983_-_rogers",
-    "module": "./easter-eggs/carrotfield/index.js"
+    "module": "./carrotfield/index.js"
   }
 ]
