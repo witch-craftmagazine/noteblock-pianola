@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>NO</title>
 
     <meta property="og:title" content="NO" />
@@ -161,7 +161,7 @@
         position: absolute;
         inset: -10%;
 
-        background: url("./monster.png") no-repeat;
+        background: url("../monster.png") no-repeat;
         background-size: 70%;
 
         opacity: 0;
@@ -256,13 +256,13 @@
       <button id="toggle-rotation">⏸ PAUSE</button>
 
       <audio id="scare-audio" preload="auto">
-        <source src="./scare.mp3" type="audio/mpeg" />
+        <source src="../scare.mp3" type="audio/mpeg" />
       </audio>
       <audio id="heartbeat-audio" preload="auto" loop>
-        <source src="./heartbeat.mp3" type="audio/mpeg" />
+        <source src="../heartbeat.mp3" type="audio/mpeg" />
       </audio>
       <audio id="rain-audio" preload="auto" loop>
-        <source src="./rain.mp3" type="audio/mpeg" />
+        <source src="../rain.mp3" type="audio/mpeg" />
       </audio>
     </div>
     <!-- /#crt-frame -->
@@ -283,12 +283,12 @@
 
       const loader = new THREE.CubeTextureLoader();
       scene.background = loader.load([
-        "./piano/panorama_2.webp",
-        "./piano/panorama_0.webp",
-        "./piano/panorama_4.webp",
-        "./piano/panorama_5.webp",
-        "./piano/panorama_1.webp",
-        "./piano/panorama_3.webp",
+        "../piano/panorama_2.webp",
+        "../piano/panorama_0.webp",
+        "../piano/panorama_4.webp",
+        "../piano/panorama_5.webp",
+        "../piano/panorama_1.webp",
+        "../piano/panorama_3.webp",
       ]);
 
       /* ── State ── */

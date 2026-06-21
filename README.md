@@ -6,6 +6,10 @@ Midis sourced from:
 - https://pianola.co.nz/public/
 - https://musescore.com/
 - https://bitmidi.com/
+- https://www.zaxpax.com/disney1.htm
+- https://torbid.tljhome.com/midi/disney.html
+- https://www.midis101.com/
+- https://www.midi-karaoke.info/
 
 A few in my library are sourced from the following, but I don't think any are contained in this repo:
 - http://www.pianorollmusic.org/rolldatabase.php
