@@ -1,26 +1,32 @@
 # .github/workflows/update-midilist.yml
 #
-# Regenerates midilist.json whenever MIDI files are added, renamed,
+# Runs the full song pipeline whenever MIDI files are added, renamed,
 # or removed in the midi/ folder on main.
 #
 # Flow:
 #   1. Push to main touches midi/**
-#   2. This workflow runs name.py (normalizes filenames + rewrites midilist.json)
-#   3. If midilist.json changed, auto-commits it back to main
-#   4. The static.yml deploy workflow then picks up the commit and deploys
+#   2. name.py         — normalizes filenames, rewrites midilist.json
+#   3. rebuild-midilist.js — ensures midilist.json is in sync with midi/
+#   4. generate-share-pages.js — regenerates per-song OG preview pages
+#   5. Auto-commits midilist.json, midi/**, and song/** back to main
+#   6. static.yml picks up the commit and deploys to GitHub Pages
+#
+# NOTE: analyze-loudness.js is NOT run here — it requires minecraft3.sf2
+# which is too large to store in the repo. Run it locally via:
+#   node tools/sync.js
+# then commit volumeAdjustments.json manually.
 
-name: Update midilist.json
+name: Update midilist and share pages
 
 on:
   push:
     branches: ["main"]
     paths:
       - "midi/**"
-  # Allow manual trigger from the Actions tab (useful for fixing a broken list)
+  # Allow manual trigger from the Actions tab
   workflow_dispatch:
 
 # Needs write access to push the auto-commit back to main.
-# Scoped only to this workflow — does not affect static.yml.
 permissions:
   contents: write
 
@@ -32,7 +38,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Fetch with the token so the auto-commit step can push
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
@@ -40,19 +45,30 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install mido
 
-      - name: Run name.py
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Normalize filenames and regenerate midilist.json
         # Exits with code 1 if filename collisions are found.
         # The workflow will fail and show the collision details in the log.
         run: python scripts/name.py
 
-      - name: Commit updated midilist.json
+      - name: Rebuild midilist.json (verify in sync with midi/)
+        run: node tools/rebuild-midilist.js
+
+      - name: Generate per-song share pages
+        run: node tools/generate-share-pages.js
+
+      - name: Commit updated files
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: regenerate midilist.json"
-          # Only commit these files — don't accidentally sweep up anything else
-          file_pattern: "midilist.json midi/**"
+          commit_message: "chore: update midilist, share pages"
+          # Commit midilist, any renamed midi files, and all generated share pages
+          file_pattern: "midilist.json midi/** song/**"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
