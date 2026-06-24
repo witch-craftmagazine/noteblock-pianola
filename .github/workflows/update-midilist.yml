@@ -5,16 +5,12 @@
 #
 # Flow:
 #   1. Push to main touches midi/**
-#   2. name.py         — normalizes filenames, rewrites midilist.json
-#   3. rebuild-midilist.js — ensures midilist.json is in sync with midi/
+#   2. name.py                 — normalizes filenames, rewrites midilist.json
+#   3. rebuild-midilist.js     — ensures midilist.json is in sync with midi/
 #   4. generate-share-pages.js — regenerates per-song OG preview pages
-#   5. Auto-commits midilist.json, midi/**, and song/** back to main
-#   6. static.yml picks up the commit and deploys to GitHub Pages
-#
-# NOTE: analyze-loudness.js is NOT run here — it requires minecraft3.sf2
-# which is too large to store in the repo. Run it locally via:
-#   node tools/sync.js
-# then commit volumeAdjustments.json manually.
+#   5. analyze-loudness.js     — updates volumeAdjustments.json (incremental)
+#   6. Auto-commits all changed files back to main
+#   7. static.yml picks up the commit and deploys to GitHub Pages
 
 name: Update midilist and share pages
 
@@ -64,11 +60,15 @@ jobs:
       - name: Generate per-song share pages
         run: node tools/generate-share-pages.js
 
+      - name: Analyze loudness and update volumeAdjustments.json
+        # Incremental — only processes tracks not already in volumeAdjustments.json.
+        # minecraft3.sf2 is checked into the repo so this runs without any extra setup.
+        run: node tools/analyze-loudness.js
+
       - name: Commit updated files
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: update midilist, share pages"
-          # Commit midilist, any renamed midi files, and all generated share pages
-          file_pattern: "midilist.json midi/** song/**"
+          commit_message: "chore: update midilist, share pages, loudness"
+          file_pattern: "midilist.json midi/** song/** volumeAdjustments.json"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"

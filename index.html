@@ -400,6 +400,27 @@ camera.position.set(
 camera.lookAt(0, 0.5, 0);
 
 // ─────────────────────────────────────────────
+//  CAMERA FOV THAT ADAPTS TO PORTRAIT/NARROW SCREENS
+// ─────────────────────────────────────────────
+// PerspectiveCamera's fov is the *vertical* FOV; the horizontal FOV three.js
+// derives is fov * aspect. On a narrow/portrait mobile viewport (aspect < 1)
+// that horizontal FOV collapses, so the box's left/right edges get clipped
+// by the canvas even though nothing about the scene changed. We widen the
+// vertical FOV on narrow screens so the horizontal FOV stays roughly
+// constant, keeping the whole model in frame.
+const BASE_FOV = 45;
+function updateCameraForViewport() {
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.fov = camera.aspect < 1 ? BASE_FOV / camera.aspect : BASE_FOV;
+  camera.fov = Math.min(camera.fov, 100); // clamp so very tall screens don't get a fisheye look
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+updateCameraForViewport();
+
+// ─────────────────────────────────────────────
 //  LIGHTING
 // ─────────────────────────────────────────────
 const ambient = new THREE.AmbientLight(0xfff4e0, CONFIG.ambientIntensity);
@@ -829,11 +850,7 @@ window.onMusicEnd = () => {
 //  RESIZE HANDLER
 // ─────────────────────────────────────────────
 window.addEventListener('resize', () => {
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
+  updateCameraForViewport();
 });
 
 // ─────────────────────────────────────────────
