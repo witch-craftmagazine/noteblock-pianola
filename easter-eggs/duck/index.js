@@ -112,14 +112,14 @@ export function init({ trigger }) {
 
   // ── Lily pads ────────────────────────────────────────────────────
   [[-10, -5], [8, -14], [-16, -12], [14, -2]].forEach(([lx, lz]) => {
-    dkScene.add(Object.assign(
-      new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 0.25, 12), solidMat(0x6a9e5c)),
-      { position: new THREE.Vector3(lx, 0.35, lz) }
-    ));
-    if (Math.random() > 0.5) dkScene.add(Object.assign(
-      new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.5, 8), solidMat(C_YELLOW)),
-      { position: new THREE.Vector3(lx, 0.7, lz) }
-    ));
+    const lily = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 0.25, 12), solidMat(0x6a9e5c));
+    lily.position.set(lx, 0.35, lz);
+    dkScene.add(lily);
+    if (Math.random() > 0.5) {
+      const flower = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.5, 8), solidMat(C_YELLOW));
+      flower.position.set(lx, 0.7, lz);
+      dkScene.add(flower);
+    }
   });
 
   // ── Reeds ────────────────────────────────────────────────────────
