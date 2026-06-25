@@ -1,42 +1,48 @@
 // easter-eggs/duck/index.js
 //
-// "Duck" easter egg — a soft pond scene with a waddling rubber duck.
-// Shown when the trigger song plays; hidden on pause or end.
+// "Peter and the Wolf" easter egg — pond scene with a cast of characters:
 //
-// Assets expected at this path (relative to repo root):
-//   ./easter-eggs/duck/duck.glb   ← duck model (must include a "walk" animation clip)
+//   duck    — on the pond (GLB has a walk animation)
+//   parrot  — circles in the air above the scene (no GLB animation; procedural)
+//   cat     — prowls the near grass, left–right (no GLB animation; procedural)
+//   wolf    — stalks the far treeline, left–right (no GLB animation; procedural)
+//
+// Assets (relative to repo root):
+//   ./easter-eggs/duck/duck.glb
+//   ./easter-eggs/duck/parrot.glb
+//   ./easter-eggs/duck/cat.glb
+//   ./easter-eggs/duck/wolf.glb
 //
 // Palette (pastel):
 //   #8cb369  sage green   — grass, foliage
 //   #f4e285  soft yellow  — sun, lily flowers
 //   #f4a259  warm peach   — trunks, reeds, earth
 //   #5b8e7d  muted teal   — pond water
-//   #bc4b51  dusty rose   — accents (reed tips, deep ground layer)
+//   #bc4b51  dusty rose   — reed tips, deep ground
 //
 // Contract: export init({ trigger }) — called by egg-loader.js.
 
 export function init({ trigger }) {
   const TRIGGER_SONG = trigger; // "peter_and_the_wolf_op.67_1936_-_prokofiev"
-  const MODEL_PATH   = './easter-eggs/duck/duck.glb';
+  const BASE_PATH    = './easter-eggs/duck/';
 
-  // ── Palette ─────────────────────────────────────────────────────
-  const C_GREEN  = 0x8cb369; // sage grass / foliage
-  const C_YELLOW = 0xf4e285; // soft sun / lily flowers
-  const C_PEACH  = 0xf4a259; // trunks / reeds / earth
-  const C_TEAL   = 0x5b8e7d; // pond water
-  const C_ROSE   = 0xbc4b51; // reed tips / deep ground / accents
+  // ── Palette ──────────────────────────────────────────────────────
+  const C_GREEN  = 0x8cb369;
+  const C_YELLOW = 0xf4e285;
+  const C_PEACH  = 0xf4a259;
+  const C_TEAL   = 0x5b8e7d;
+  const C_ROSE   = 0xbc4b51;
 
-  // ── Overlay / Canvas ────────────────────────────────────────────
+  // ── Overlay / Canvas ─────────────────────────────────────────────
   const dkOverlay = document.getElementById('duck-overlay');
   const dkCanvas  = document.getElementById('duck-canvas');
 
-  // ── Renderer / Scene / Camera ───────────────────────────────────
+  // ── Renderer / Scene / Camera ────────────────────────────────────
   const dkRenderer = new THREE.WebGLRenderer({ canvas: dkCanvas, antialias: true, alpha: true });
   dkRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   dkRenderer.setClearColor(0x000000, 0);
 
-  const SKY = 0xd6eaf0; // pale blue-grey sky, not blinding
-
+  const SKY = 0xd6eaf0;
   const dkScene = new THREE.Scene();
   dkScene.background = new THREE.Color(SKY);
   dkScene.fog = new THREE.Fog(SKY, 120, 280);
@@ -55,7 +61,7 @@ export function init({ trigger }) {
   dkResize();
   window.addEventListener('resize', dkResize);
 
-  // ── Lighting ────────────────────────────────────────────────────
+  // ── Lighting ─────────────────────────────────────────────────────
   dkScene.add(new THREE.AmbientLight(0xf0ece0, 0.75));
   const dkSun = new THREE.DirectionalLight(0xfff5cc, 1.0);
   dkSun.position.set(60, 80, 40);
@@ -71,43 +77,32 @@ export function init({ trigger }) {
     if (!_matCache.has(key)) _matCache.set(key, new THREE.MeshLambertMaterial({ color: hex, ...opts }));
     return _matCache.get(key);
   }
-  function addBox(w, h, d, color, x, y, z, opts) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), solidMat(color, opts));
+  function addBox(w, h, d, color, x, y, z) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), solidMat(color));
     m.position.set(x, y, z);
     dkScene.add(m);
     return m;
   }
 
   // ── Ground ───────────────────────────────────────────────────────
-  // Top grass layer — sage green
   addBox(600, 6,  120, C_GREEN, 0, -3,  0);
-  // Mid earth layer — warm peach
   addBox(600, 8,  120, C_PEACH, 0, -10, 0);
-  // Deep ground — dusty rose
   addBox(600, 10, 120, C_ROSE,  0, -19, 0);
-  // Subtle grass stripe variation
   for (let x = -220; x <= 220; x += 9) {
-    const col = Math.random() > 0.5 ? 0x9ec07a : 0x7da854; // lighter/darker sage variants
-    addBox(3.5, 0.4, 120, col, x, 0.1, 0);
+    addBox(3.5, 0.4, 120, Math.random() > 0.5 ? 0x9ec07a : 0x7da854, x, 0.1, 0);
   }
 
   // ── Pond ─────────────────────────────────────────────────────────
-  const pondMat = new THREE.MeshLambertMaterial({
-    color: C_TEAL, transparent: true, opacity: 0.80, depthWrite: false,
-  });
+  const pondMat = new THREE.MeshLambertMaterial({ color: C_TEAL, transparent: true, opacity: 0.80, depthWrite: false });
   const pondBase = new THREE.Mesh(new THREE.CylinderGeometry(28, 28, 0.5, 48), pondMat);
   pondBase.position.set(0, 0.05, -6);
   pondBase.scale.set(1, 1, 0.7);
   dkScene.add(pondBase);
 
-  // Ripple rings — slightly lighter teal
   for (let r = 1; r <= 3; r++) {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(r * 7 - 0.3, r * 7 + 0.3, 48),
-      new THREE.MeshBasicMaterial({
-        color: 0x7ab8ac, transparent: true, opacity: 0.22 - r * 0.04,
-        side: THREE.DoubleSide, depthWrite: false,
-      })
+      new THREE.MeshBasicMaterial({ color: 0x7ab8ac, transparent: true, opacity: 0.22 - r * 0.04, side: THREE.DoubleSide, depthWrite: false })
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(0, 0.2, -6);
@@ -116,99 +111,57 @@ export function init({ trigger }) {
   }
 
   // ── Lily pads ────────────────────────────────────────────────────
-  const lilyPositions = [[-10, -5], [8, -14], [-16, -12], [14, -2]];
-  lilyPositions.forEach(([lx, lz]) => {
-    const lily = new THREE.Mesh(
-      new THREE.CylinderGeometry(3.8, 3.8, 0.25, 12),
-      new THREE.MeshLambertMaterial({ color: 0x6a9e5c }) // mid sage-green
-    );
-    lily.position.set(lx, 0.35, lz);
-    dkScene.add(lily);
-    if (Math.random() > 0.5) {
-      const flower = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.9, 0.9, 0.5, 8),
-        new THREE.MeshLambertMaterial({ color: C_YELLOW })
-      );
-      flower.position.set(lx, 0.7, lz);
-      dkScene.add(flower);
-    }
+  [[-10, -5], [8, -14], [-16, -12], [14, -2]].forEach(([lx, lz]) => {
+    dkScene.add(Object.assign(
+      new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 0.25, 12), solidMat(0x6a9e5c)),
+      { position: new THREE.Vector3(lx, 0.35, lz) }
+    ));
+    if (Math.random() > 0.5) dkScene.add(Object.assign(
+      new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.5, 8), solidMat(C_YELLOW)),
+      { position: new THREE.Vector3(lx, 0.7, lz) }
+    ));
   });
 
   // ── Reeds ────────────────────────────────────────────────────────
-  const reedPositions = [[-25, 2], [-20, 8], [-22, -4], [22, 0], [24, 8], [19, -8], [0, -28], [8, -26]];
-  reedPositions.forEach(([rx, rz]) => {
+  [[-25,2],[-20,8],[-22,-4],[22,0],[24,8],[19,-8],[0,-28],[8,-26]].forEach(([rx, rz]) => {
     const h = 6 + Math.random() * 4;
-    const stalk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.25, 0.3, h, 5),
-      new THREE.MeshLambertMaterial({ color: C_PEACH })
-    );
-    stalk.position.set(rx, h / 2, rz);
-    dkScene.add(stalk);
-    const tip = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 1.4, 5),
-      new THREE.MeshLambertMaterial({ color: C_ROSE })
-    );
-    tip.position.set(rx, h + 0.7, rz);
-    dkScene.add(tip);
+    addBox(0.5, h,   0.5, C_PEACH, rx, h / 2,   rz);
+    addBox(1.0, 1.4, 1.0, C_ROSE,  rx, h + 0.7, rz);
   });
 
   // ── Trees ────────────────────────────────────────────────────────
-  const foliageData = [
-    [-110, -22, 14], [-78, -20, 11], [-52, -18, 13], [56,  -20, 12],
-    [ 84,  -22, 15], [112, -20, 10], [-130,-35, 18], [108, -36, 16],
+  // Two layers: near trees at z ≈ -20 (visible midground) and far trees at z ≈ -35
+  const treeData = [
+    [-110,-22,14], [-78,-20,11], [-52,-18,13], [56,-20,12],
+    [84,-22,15],   [112,-20,10], [-130,-35,18],[108,-36,16],
   ];
-  foliageData.forEach(([x, z, r]) => {
-    const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.2, 1.4, 8, 6),
-      new THREE.MeshLambertMaterial({ color: C_PEACH })
-    );
-    trunk.position.set(x, 4, z);
-    dkScene.add(trunk);
-    const canopy = new THREE.Mesh(
-      new THREE.SphereGeometry(r * 0.7, 8, 6),
-      new THREE.MeshLambertMaterial({ color: C_GREEN })
-    );
+  treeData.forEach(([x, z, r]) => {
+    addBox(2.4, 8,       2.4, C_PEACH, x, 4,         z);
+    const canopy = new THREE.Mesh(new THREE.SphereGeometry(r * 0.7, 8, 6), solidMat(C_GREEN));
     canopy.position.set(x, 8 + r * 0.6, z);
     dkScene.add(canopy);
   });
 
-  // Sun disc — soft yellow, not blinding white
+  // Sun disc
   addBox(14, 14, 2, C_YELLOW, 100, 90, -60);
 
-  // ── Floating bubbles on the pond ─────────────────────────────────
-  const BUBBLE_COUNT = 18;
+  // ── Bubbles ──────────────────────────────────────────────────────
   const bubbles = [];
   const bubbleGeo = new THREE.SphereGeometry(0.55, 6, 4);
-
-  function randRange(min, max) { return min + Math.random() * (max - min); }
-
+  function randRange(a, b) { return a + Math.random() * (b - a); }
   function resetBubble(b, scatter) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist  = randRange(4, 22);
-    b.mesh.position.x = Math.cos(angle) * dist;
-    b.mesh.position.z = -6 + Math.sin(angle) * dist * 0.7;
-    b.mesh.position.y = scatter ? randRange(0.4, 1.4) : 0.45;
-    b.bobSpeed  = randRange(0.4, 0.9);
-    b.bobAmp    = randRange(0.12, 0.35);
-    b.bobPhase  = Math.random() * Math.PI * 2;
-    b.driftX    = randRange(-0.6, 0.6);
-    b.driftZ    = randRange(-0.3, 0.3);
-    b.life      = randRange(3, 9);
-    b.age       = scatter ? Math.random() * b.life : 0;
+    const ang = Math.random() * Math.PI * 2;
+    const d   = randRange(4, 22);
+    b.mesh.position.set(Math.cos(ang) * d, scatter ? randRange(0.4, 1.4) : 0.45, -6 + Math.sin(ang) * d * 0.7);
+    Object.assign(b, { bobSpeed: randRange(0.4,0.9), bobAmp: randRange(0.12,0.35), bobPhase: Math.random()*Math.PI*2,
+      driftX: randRange(-0.6,0.6), driftZ: randRange(-0.3,0.3), life: randRange(3,9), age: scatter ? Math.random()*9 : 0 });
   }
-
-  for (let i = 0; i < BUBBLE_COUNT; i++) {
-    // Teal-tinted bubbles matching the pond
-    const mat = new THREE.MeshLambertMaterial({
-      color: 0x8ab8b0, transparent: true, opacity: 0.45, depthWrite: false,
-    });
-    const mesh = new THREE.Mesh(bubbleGeo, mat);
-    const b = { mesh };
+  for (let i = 0; i < 18; i++) {
+    const b = { mesh: new THREE.Mesh(bubbleGeo, new THREE.MeshLambertMaterial({ color: 0x8ab8b0, transparent: true, opacity: 0.45, depthWrite: false })) };
     resetBubble(b, true);
-    dkScene.add(mesh);
+    dkScene.add(b.mesh);
     bubbles.push(b);
   }
-
   function tickBubbles(dt) {
     for (const b of bubbles) {
       b.age += dt;
@@ -219,125 +172,245 @@ export function init({ trigger }) {
     }
   }
 
-  // ── Ripple ring animation ────────────────────────────────────────
-  let rippleElapsed = 0;
+  // ── Ripples ──────────────────────────────────────────────────────
+  let rippleT = 0;
   function tickRipples(dt) {
-    rippleElapsed += dt;
-    dkScene.children
-      .filter(c => c.geometry && c.geometry.type === 'RingGeometry')
-      .forEach((ring, i) => {
-        ring.material.opacity = Math.max(0, 0.12 + 0.08 * Math.sin(rippleElapsed * 1.1 + i * 1.3));
-      });
+    rippleT += dt;
+    dkScene.children.filter(c => c.geometry?.type === 'RingGeometry').forEach((ring, i) => {
+      ring.material.opacity = Math.max(0, 0.12 + 0.08 * Math.sin(rippleT * 1.1 + i * 1.3));
+    });
   }
 
-  // ── Duck (GLB model with walk animation) ────────────────────────
-  //
-  // The duck.glb model's natural forward direction is +Z (it faces away from
-  // the camera at rotation.y = 0). We apply a BASE_ROT of Math.PI so it faces
-  // toward the camera (-Z, i.e. toward the viewer) at rest, then turn left/right
-  // from that base:
-  //   moving right (+X): BASE_ROT + π/2  → faces right
-  //   moving left  (-X): BASE_ROT - π/2  → faces left
-  //
-  const BASE_ROT   = Math.PI; // model's +Z forward → flip to face camera
-  const X_RANGE    = 18;
-  const GROUND_Y   = 0.5;
-  const MOVE_SPEED = 3.8;
-
-  let dkDuck    = null;
-  let dkMixer   = null;
-  let dkDir     = 1;
-  let dkElapsed = 0;
-
-  const shadowGeo  = new THREE.CircleGeometry(3.2, 10);
-  const shadowMat  = new THREE.MeshBasicMaterial({
-    color: 0x3a5a50, transparent: true, opacity: 0.18, depthWrite: false,
-  });
-  const shadowDisc = new THREE.Mesh(shadowGeo, shadowMat);
-  shadowDisc.rotation.x = -Math.PI / 2;
-  shadowDisc.position.set(0, GROUND_Y + 0.05, -6);
-  shadowDisc.visible = false;
-  dkScene.add(shadowDisc);
-
-  function loadDuck() {
+  // ── GLB loader helper ─────────────────────────────────────────────
+  // Scales the model to targetHeight, pins its bottom to groundY,
+  // optionally centres X/Z, then calls onLoad(model).
+  function loadGLB(filename, targetHeight, groundY, onLoad) {
     if (typeof THREE.GLTFLoader === 'undefined') {
-      console.warn('[Duck] THREE.GLTFLoader not available — duck will not render.');
+      console.warn('[Duck egg] THREE.GLTFLoader unavailable — skipping', filename);
       return;
     }
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-      MODEL_PATH,
+    new THREE.GLTFLoader().load(
+      BASE_PATH + filename,
       (gltf) => {
-        dkDuck = gltf.scene;
-
-        // Scale so the duck is ~8 units tall regardless of GLB internal units
-        const box = new THREE.Box3().setFromObject(dkDuck);
-        const size = new THREE.Vector3();
+        const model = gltf.scene;
+        const box   = new THREE.Box3().setFromObject(model);
+        const size  = new THREE.Vector3();
         box.getSize(size);
-        const TARGET_HEIGHT = 8;
-        const scale = TARGET_HEIGHT / size.y;
-        dkDuck.scale.setScalar(scale);
+        const scale = targetHeight / size.y;
+        model.scale.setScalar(scale);
 
-        // Pin bottom of model to GROUND_Y, centred on pond Z
-        const box2 = new THREE.Box3().setFromObject(dkDuck);
-        const centre = new THREE.Vector3();
-        box2.getCenter(centre);
-        dkDuck.position.set(-centre.x, GROUND_Y - box2.min.y, -6 - centre.z);
+        // Recompute after scale to find the true bottom
+        const box2 = new THREE.Box3().setFromObject(model);
+        const ctr  = new THREE.Vector3();
+        box2.getCenter(ctr);
+        // Neutralise any internal X/Z offset so position.x/z mean what we expect
+        model.position.set(-ctr.x, groundY - box2.min.y, -ctr.z);
 
-        // Start at left edge, facing right
-        dkDuck.position.x = -X_RANGE;
-        dkDuck.rotation.y = BASE_ROT + Math.PI / 2; // facing +X (right)
-
-        dkScene.add(dkDuck);
-
-        // Animation mixer — prefer a "walk" clip, fall back to first
-        if (gltf.animations && gltf.animations.length > 0) {
-          dkMixer = new THREE.AnimationMixer(dkDuck);
-          const clip = gltf.animations.find(a => /walk/i.test(a.name)) || gltf.animations[0];
-          dkMixer.clipAction(clip).play();
+        // Wire up animations if present
+        let mixer = null;
+        if (gltf.animations?.length) {
+          mixer = new THREE.AnimationMixer(model);
+          const clip = gltf.animations.find(a => /walk|run|move/i.test(a.name)) || gltf.animations[0];
+          mixer.clipAction(clip).play();
+          console.log(`[Duck egg] ${filename} animations:`, gltf.animations.map(a => a.name));
         } else {
-          console.warn('[Duck] GLB has no animation clips.');
+          console.log(`[Duck egg] ${filename} has no animations — using procedural motion`);
         }
 
-        shadowDisc.visible = true;
-        console.log('[Duck] loaded. animations:', gltf.animations.map(a => a.name));
+        dkScene.add(model);
+        onLoad(model, mixer);
       },
       undefined,
-      (err) => console.error('[Duck] Failed to load duck.glb:', err)
+      (err) => console.error(`[Duck egg] Failed to load ${filename}:`, err)
     );
   }
 
+  // ── Smooth turn helper ────────────────────────────────────────────
+  // Smoothly lerps rotation.y toward targetY, taking the shortest arc.
+  function smoothTurn(model, targetY, ease) {
+    const dy = targetY - model.rotation.y;
+    model.rotation.y += (((dy + Math.PI) % (Math.PI * 2)) - Math.PI) * ease;
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // DUCK — on the pond surface, has a walk animation
+  // ══════════════════════════════════════════════════════════════════
+  // The duck GLB faces +Z (away from camera) at rotation.y = 0.
+  // BASE_ROT = π flips it to face the camera; then ±π/2 turns it left/right.
+  const DUCK_BASE_ROT = Math.PI;
+  const DUCK_X_RANGE  = 18;
+  const DUCK_GROUND_Y = 0.5;   // on the water surface
+  const DUCK_SPEED    = 3.8;
+
+  let dkDuck = null, dkDuckMixer = null, dkDuckDir = 1, dkDuckT = 0;
+
+  // Shadow for the duck
+  const shadowMat  = new THREE.MeshBasicMaterial({ color: 0x3a5a50, transparent: true, opacity: 0.18, depthWrite: false });
+  const shadowDisc = new THREE.Mesh(new THREE.CircleGeometry(3.2, 10), shadowMat);
+  shadowDisc.rotation.x = -Math.PI / 2;
+  shadowDisc.position.set(0, DUCK_GROUND_Y + 0.05, -6);
+  shadowDisc.visible = false;
+  dkScene.add(shadowDisc);
+
+  loadGLB('duck.glb', 8, DUCK_GROUND_Y, (model, mixer) => {
+    dkDuck = model;
+    dkDuckMixer = mixer;
+    dkDuck.position.x = -DUCK_X_RANGE;
+    dkDuck.position.z = -6;
+    dkDuck.rotation.y = DUCK_BASE_ROT + Math.PI / 2;
+    shadowDisc.visible = true;
+  });
+
   function tickDuck(dt) {
     if (!dkDuck) return;
-    dkElapsed += dt;
+    dkDuckT += dt;
+    if (dkDuckMixer) dkDuckMixer.update(dt);
 
-    if (dkMixer) dkMixer.update(dt);
+    let px = dkDuck.position.x + dkDuckDir * DUCK_SPEED * dt;
+    if (px >=  DUCK_X_RANGE) { px =  DUCK_X_RANGE; dkDuckDir = -1; }
+    if (px <= -DUCK_X_RANGE) { px = -DUCK_X_RANGE; dkDuckDir =  1; }
 
-    // Move side to side within pond bounds
-    let px = dkDuck.position.x + dkDir * MOVE_SPEED * dt;
-    if (px >= X_RANGE)  { px =  X_RANGE; dkDir = -1; }
-    if (px <= -X_RANGE) { px = -X_RANGE; dkDir =  1; }
-
-    const bob = Math.abs(Math.sin(dkElapsed * 2.8)) * 0.35;
+    const bob = Math.abs(Math.sin(dkDuckT * 2.8)) * 0.35;
     dkDuck.position.x = px;
-    dkDuck.position.y = GROUND_Y + bob;
+    dkDuck.position.y = DUCK_GROUND_Y + bob;
 
-    // Target rotation: BASE_ROT ± π/2 so the duck faces left or right
-    // (both orientations keep the duck facing toward the camera / viewer)
-    const targetY = BASE_ROT + (dkDir > 0 ? Math.PI / 2 : -Math.PI / 2);
-    const dy = targetY - dkDuck.rotation.y;
-    const dyClamped = ((dy + Math.PI) % (Math.PI * 2)) - Math.PI;
-    dkDuck.rotation.y += dyClamped * 0.10;
-
-    // Gentle lean into direction of travel
-    dkDuck.rotation.z = -dkDir * 0.06;
+    smoothTurn(dkDuck, DUCK_BASE_ROT + (dkDuckDir > 0 ? Math.PI / 2 : -Math.PI / 2), 0.10);
+    dkDuck.rotation.z = -dkDuckDir * 0.06;
 
     shadowDisc.position.x = px;
     shadowMat.opacity = Math.max(0.05, 0.18 - bob * 0.06);
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // CAT — prowls the near grass, just in front of the pond
+  // Sits at z ≈ +10 (between camera and pond), ground level.
+  // Procedural idle: gentle head-bob and slow stalk pace.
+  // ══════════════════════════════════════════════════════════════════
+  const CAT_Z       = 10;   // near-grass strip, in front of the pond
+  const CAT_X_RANGE = 38;
+  const CAT_GROUND  = 0;    // ground surface
+  const CAT_SPEED   = 2.2;  // slow prowl
+
+  let dkCat = null, dkCatMixer = null, dkCatDir = -1, dkCatT = 0;
+
+  loadGLB('cat.glb', 7, CAT_GROUND, (model, mixer) => {
+    dkCat = model;
+    dkCatMixer = mixer;
+    dkCat.position.set(CAT_X_RANGE, CAT_GROUND, CAT_Z);
+    // Cat models typically face +Z; π makes it face camera, then ±π/2 to turn
+    dkCat.rotation.y = Math.PI - Math.PI / 2; // start facing left
+  });
+
+  function tickCat(dt) {
+    if (!dkCat) return;
+    dkCatT += dt;
+    if (dkCatMixer) dkCatMixer.update(dt);
+
+    let px = dkCat.position.x + dkCatDir * CAT_SPEED * dt;
+    if (px >=  CAT_X_RANGE) { px =  CAT_X_RANGE; dkCatDir = -1; }
+    if (px <= -CAT_X_RANGE) { px = -CAT_X_RANGE; dkCatDir =  1; }
+
+    // Very subtle vertical prowl — cats barely bob
+    const bob = Math.sin(dkCatT * 3.0) * 0.12;
+    dkCat.position.x = px;
+    dkCat.position.y = CAT_GROUND + Math.max(0, bob);
+
+    smoothTurn(dkCat, Math.PI + (dkCatDir > 0 ? Math.PI / 2 : -Math.PI / 2), 0.08);
+
+    // Tail-tip sway (rotation.z)
+    dkCat.rotation.z = Math.sin(dkCatT * 1.2) * 0.04;
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // WOLF — stalks the far tree-line, deeper in the scene.
+  // Sits at z ≈ -28, partially behind the reeds/trees.
+  // Larger, slower, more menacing pace.
+  // ══════════════════════════════════════════════════════════════════
+  const WOLF_Z       = -28;  // behind the pond / treeline
+  const WOLF_X_RANGE = 55;
+  const WOLF_GROUND  = 0;
+  const WOLF_SPEED   = 4.5;  // wolves cover ground faster but appear slower due to distance
+
+  let dkWolf = null, dkWolfMixer = null, dkWolfDir = 1, dkWolfT = 0;
+
+  loadGLB('wolf.glb', 11, WOLF_GROUND, (model, mixer) => {
+    dkWolf = model;
+    dkWolfMixer = mixer;
+    dkWolf.position.set(-WOLF_X_RANGE, WOLF_GROUND, WOLF_Z);
+    dkWolf.rotation.y = Math.PI + Math.PI / 2; // start facing right
+  });
+
+  function tickWolf(dt) {
+    if (!dkWolf) return;
+    dkWolfT += dt;
+    if (dkWolfMixer) dkWolfMixer.update(dt);
+
+    let px = dkWolf.position.x + dkWolfDir * WOLF_SPEED * dt;
+    if (px >=  WOLF_X_RANGE) { px =  WOLF_X_RANGE; dkWolfDir = -1; }
+    if (px <= -WOLF_X_RANGE) { px = -WOLF_X_RANGE; dkWolfDir =  1; }
+
+    // Wolves have a loping gait — slightly more bounce than the cat
+    const bob = Math.abs(Math.sin(dkWolfT * 2.2)) * 0.4;
+    dkWolf.position.x = px;
+    dkWolf.position.y = WOLF_GROUND + bob;
+
+    smoothTurn(dkWolf, Math.PI + (dkWolfDir > 0 ? Math.PI / 2 : -Math.PI / 2), 0.07);
+    dkWolf.rotation.z = -dkWolfDir * 0.04;
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // PARROT — circles lazily in the air above the scene.
+  // Flies a gentle elliptical orbit, banking into the turn.
+  // ══════════════════════════════════════════════════════════════════
+  const PARROT_ORBIT_RX = 38;  // orbit radius X
+  const PARROT_ORBIT_RZ = 22;  // orbit radius Z (shallower — perspective foreshortening)
+  const PARROT_ORBIT_CZ = -8;  // orbit centre Z (over the pond)
+  const PARROT_ALT      = 36;  // altitude
+  const PARROT_SPEED    = 0.35; // radians/sec — lazy circles
+
+  let dkParrot = null, dkParrotMixer = null, dkParrotAngle = 0;
+
+  loadGLB('parrot.glb', 5, 0 /* unused — we set Y manually */, (model, mixer) => {
+    dkParrot = model;
+    dkParrotMixer = mixer;
+    // Override Y set by loadGLB to put the parrot in the air
+    dkParrot.position.y = PARROT_ALT;
+  });
+
+  function tickParrot(dt) {
+    if (!dkParrot) return;
+    if (dkParrotMixer) dkParrotMixer.update(dt);
+
+    dkParrotAngle += PARROT_SPEED * dt;
+
+    const px = Math.cos(dkParrotAngle) * PARROT_ORBIT_RX;
+    const pz = PARROT_ORBIT_CZ + Math.sin(dkParrotAngle) * PARROT_ORBIT_RZ;
+
+    // Altitude: add a gentle sine dip so it feels alive
+    const alt = PARROT_ALT + Math.sin(dkParrotAngle * 1.7) * 3;
+
+    dkParrot.position.set(px, alt, pz);
+
+    // Face the direction of travel (tangent of the ellipse)
+    // dx/dθ = -sin θ * Rx,  dz/dθ = cos θ * Rz
+    const tx = -Math.sin(dkParrotAngle) * PARROT_ORBIT_RX;
+    const tz =  Math.cos(dkParrotAngle) * PARROT_ORBIT_RZ;
+    const targetY = Math.atan2(tx, tz); // atan2(x, z) gives yaw in Three.js convention
+    smoothTurn(dkParrot, targetY, 0.12);
+
+    // Bank into the turn — lean away from centre
+    dkParrot.rotation.z = -Math.sin(dkParrotAngle) * 0.25;
+
+    // Wing-flap: gentle pitch oscillation
+    dkParrot.rotation.x = Math.sin(dkParrotAngle * 6) * 0.18;
+  }
+
+  // ── Master tick ──────────────────────────────────────────────────
   function tickAll(dt) {
     tickDuck(dt);
+    tickCat(dt);
+    tickWolf(dt);
+    tickParrot(dt);
     tickBubbles(dt);
     tickRipples(dt);
   }
@@ -362,35 +435,31 @@ export function init({ trigger }) {
     dkOverlay.classList.add('visible');
     if (!dkRunning) { dkRunning = true; dkLastNow = null; requestAnimationFrame(dkLoop); }
   }
-
   function hideDkOverlay() {
     dkOverlay.classList.remove('visible');
     dkRunning = false;
   }
 
-  loadDuck();
+  // Load all models up front (mirrors how Green loads its skin image)
+  // loadGLB calls are already made above — models appear as soon as they arrive.
 
-  // ── Hook into music callbacks ────────────────────────────────────
+  // ── Music callbacks ───────────────────────────────────────────────
   const _prevPlay  = window.onMusicPlay;
   const _prevPause = window.onMusicPause;
   const _prevEnd   = window.onMusicEnd;
 
   window.onMusicPlay = function (songFile) {
-    const raw  = songFile || window._currentSong || '';
-    const name = raw.replace(/\.mid$/i, '').replace(/^.*[\\/]/, '');
+    const name = (songFile || window._currentSong || '').replace(/\.mid$/i, '').replace(/^.*[\\/]/, '');
     if (name === TRIGGER_SONG) showDkOverlay();
     if (_prevPlay) _prevPlay(songFile);
   };
-
   window.onMusicPause = function (songFile) {
     hideDkOverlay();
     if (_prevPause) _prevPause(songFile);
   };
-
   window.onMusicEnd = function (songFile) {
     hideDkOverlay();
     if (_prevEnd) _prevEnd(songFile);
   };
-
   window._setCurrentSong = function (name) { window._currentSong = name; };
 }
