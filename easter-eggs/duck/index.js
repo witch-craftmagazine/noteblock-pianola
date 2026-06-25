@@ -180,17 +180,7 @@ export function init({ trigger }) {
       ring.material.opacity = Math.max(0, 0.12 + 0.08 * Math.sin(rippleT * 1.1 + i * 1.3));
     });
   }
-
-  // ── GLB loader helper ─────────────────────────────────────────────
-  // Wraps the GLB scene in a pivot Group so the model's own transforms are
-  // never overwritten. Sketchfab GLBs bake offsets into child node transforms;
-  // writing directly to model.position breaks those baked values and causes
-  // rendering corruption. The pivot is what tick functions move/rotate.
-  //
-  // Inside the pivot, the model is offset so its bounding-box bottom is at
-  // y=0 and its X/Z centre is at (0,0) — giving the pivot a clean origin.
-  //
-  // onLoad receives (pivot, mixer).
+// ── GLB loader helper ─────────────────────────────────────────────
   function loadGLB(filename, targetHeight, groundY, onLoad) {
     if (typeof THREE.GLTFLoader === 'undefined') {
       console.warn('[Duck egg] THREE.GLTFLoader unavailable — skipping', filename);
@@ -200,22 +190,28 @@ export function init({ trigger }) {
       BASE_PATH + filename,
       (gltf) => {
         const model = gltf.scene;
+        
+        // FIX: Wrap the raw model in an intermediate group. 
+        // This preserves the model's baked root transforms and prevents rigged 
+        // meshes (like the wolf/parrot) from detaching from their skeletons.
+        const offsetGroup = new THREE.Group();
+        offsetGroup.add(model);
 
-        // Scale to desired height
-        const box1 = new THREE.Box3().setFromObject(model);
+        // Scale the wrapper (not the model) to desired height
+        const box1 = new THREE.Box3().setFromObject(offsetGroup);
         const size = new THREE.Vector3();
         box1.getSize(size);
-        model.scale.setScalar(targetHeight / size.y);
+        offsetGroup.scale.setScalar(targetHeight / size.y);
 
         // Recompute bounds after scaling
-        const box2 = new THREE.Box3().setFromObject(model);
+        const box2 = new THREE.Box3().setFromObject(offsetGroup);
         const ctr  = new THREE.Vector3();
         box2.getCenter(ctr);
 
-        // Wrap in pivot — shift model inside so pivot origin = foot-centre
+        // Wrap in pivot — shift the offsetGroup inside so pivot origin = foot-centre
         const pivot = new THREE.Group();
-        model.position.set(-ctr.x, -box2.min.y, -ctr.z);
-        pivot.add(model);
+        offsetGroup.position.set(-ctr.x, -box2.min.y, -ctr.z);
+        pivot.add(offsetGroup);
         pivot.position.y = groundY;
 
         // Animations
