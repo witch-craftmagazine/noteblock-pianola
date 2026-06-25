@@ -294,6 +294,25 @@
     width: 100%;
     height: 100%;
   }
+
+  /* ── Duck skip overlay (shown when peter_and_the_wolf plays) ── */
+  #duck-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  #duck-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #duck-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
   </style>
 </head>
 <body>
@@ -327,6 +346,11 @@
   <!-- Lab skip overlay (shown when hip_to_be_square plays) -->
   <div id="lb-overlay">
     <canvas id="lb-canvas"></canvas>
+  </div>
+
+  <!-- Duck skip overlay (shown when peter_and_the_wolf plays) -->
+  <div id="duck-overlay">
+    <canvas id="duck-canvas"></canvas>
   </div>
 
   <div id="wind-hint">↻ Drag the crank in a clockwise circle to wind up</div>
