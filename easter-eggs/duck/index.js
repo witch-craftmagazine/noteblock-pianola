@@ -541,7 +541,7 @@ export function init({ trigger }) {
   const PARROT_ORBIT_RX = 38; // orbit radius X
   const PARROT_ORBIT_RZ = 22; // orbit radius Z (shallower — perspective foreshortening)
   const PARROT_ORBIT_CZ = -8; // orbit centre Z (over the pond)
-  const PARROT_ALT = 36; // altitude
+  const PARROT_ALT = 20; // altitude
   const PARROT_SPEED = 0.35; // radians/sec — lazy circles
 
   let dkParrot = null,
