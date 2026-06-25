@@ -23,5 +23,10 @@
     "id": "lab",
     "trigger": "hip_to_be_square_1986_-_lewis",
     "module": "./lab/index.js"
+  },
+  {
+  "id": "duck",
+  "trigger": "peter_and_the_wolf_op.67_1936_-_prokofiev",
+  "module": "./duck/index.js"
   }
 ]
