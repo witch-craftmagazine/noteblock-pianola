@@ -182,8 +182,15 @@ export function init({ trigger }) {
   }
 
   // ── GLB loader helper ─────────────────────────────────────────────
-  // Scales the model to targetHeight, pins its bottom to groundY,
-  // optionally centres X/Z, then calls onLoad(model).
+  // Wraps the GLB scene in a pivot Group so the model's own transforms are
+  // never overwritten. Sketchfab GLBs bake offsets into child node transforms;
+  // writing directly to model.position breaks those baked values and causes
+  // rendering corruption. The pivot is what tick functions move/rotate.
+  //
+  // Inside the pivot, the model is offset so its bounding-box bottom is at
+  // y=0 and its X/Z centre is at (0,0) — giving the pivot a clean origin.
+  //
+  // onLoad receives (pivot, mixer).
   function loadGLB(filename, targetHeight, groundY, onLoad) {
     if (typeof THREE.GLTFLoader === 'undefined') {
       console.warn('[Duck egg] THREE.GLTFLoader unavailable — skipping', filename);
@@ -193,20 +200,25 @@ export function init({ trigger }) {
       BASE_PATH + filename,
       (gltf) => {
         const model = gltf.scene;
-        const box   = new THREE.Box3().setFromObject(model);
-        const size  = new THREE.Vector3();
-        box.getSize(size);
-        const scale = targetHeight / size.y;
-        model.scale.setScalar(scale);
 
-        // Recompute after scale to find the true bottom
+        // Scale to desired height
+        const box1 = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3();
+        box1.getSize(size);
+        model.scale.setScalar(targetHeight / size.y);
+
+        // Recompute bounds after scaling
         const box2 = new THREE.Box3().setFromObject(model);
         const ctr  = new THREE.Vector3();
         box2.getCenter(ctr);
-        // Neutralise any internal X/Z offset so position.x/z mean what we expect
-        model.position.set(-ctr.x, groundY - box2.min.y, -ctr.z);
 
-        // Wire up animations if present
+        // Wrap in pivot — shift model inside so pivot origin = foot-centre
+        const pivot = new THREE.Group();
+        model.position.set(-ctr.x, -box2.min.y, -ctr.z);
+        pivot.add(model);
+        pivot.position.y = groundY;
+
+        // Animations
         let mixer = null;
         if (gltf.animations?.length) {
           mixer = new THREE.AnimationMixer(model);
@@ -217,8 +229,8 @@ export function init({ trigger }) {
           console.log(`[Duck egg] ${filename} has no animations — using procedural motion`);
         }
 
-        dkScene.add(model);
-        onLoad(model, mixer);
+        dkScene.add(pivot);
+        onLoad(pivot, mixer);
       },
       undefined,
       (err) => console.error(`[Duck egg] Failed to load ${filename}:`, err)
@@ -252,8 +264,8 @@ export function init({ trigger }) {
   shadowDisc.visible = false;
   dkScene.add(shadowDisc);
 
-  loadGLB('duck.glb', 8, DUCK_GROUND_Y, (model, mixer) => {
-    dkDuck = model;
+  loadGLB('duck.glb', 8, DUCK_GROUND_Y, (pivot, mixer) => {
+    dkDuck = pivot;
     dkDuckMixer = mixer;
     dkDuck.position.x = -DUCK_X_RANGE;
     dkDuck.position.z = -6;
@@ -293,8 +305,8 @@ export function init({ trigger }) {
 
   let dkCat = null, dkCatMixer = null, dkCatDir = -1, dkCatT = 0;
 
-  loadGLB('cat.glb', 7, CAT_GROUND, (model, mixer) => {
-    dkCat = model;
+  loadGLB('cat.glb', 7, CAT_GROUND, (pivot, mixer) => {
+    dkCat = pivot;
     dkCatMixer = mixer;
     dkCat.position.set(CAT_X_RANGE, CAT_GROUND, CAT_Z);
     // Cat models typically face +Z; π makes it face camera, then ±π/2 to turn
@@ -333,8 +345,8 @@ export function init({ trigger }) {
 
   let dkWolf = null, dkWolfMixer = null, dkWolfDir = 1, dkWolfT = 0;
 
-  loadGLB('wolf.glb', 11, WOLF_GROUND, (model, mixer) => {
-    dkWolf = model;
+  loadGLB('wolf.glb', 11, WOLF_GROUND, (pivot, mixer) => {
+    dkWolf = pivot;
     dkWolfMixer = mixer;
     dkWolf.position.set(-WOLF_X_RANGE, WOLF_GROUND, WOLF_Z);
     dkWolf.rotation.y = Math.PI + Math.PI / 2; // start facing right
@@ -370,11 +382,10 @@ export function init({ trigger }) {
 
   let dkParrot = null, dkParrotMixer = null, dkParrotAngle = 0;
 
-  loadGLB('parrot.glb', 5, 0 /* unused — we set Y manually */, (model, mixer) => {
-    dkParrot = model;
+  loadGLB('parrot.glb', 5, 0, (pivot, mixer) => {
+    dkParrot = pivot;
     dkParrotMixer = mixer;
-    // Override Y set by loadGLB to put the parrot in the air
-    dkParrot.position.y = PARROT_ALT;
+    // tickParrot sets position every frame, including Y altitude
   });
 
   function tickParrot(dt) {
