@@ -1,0 +1,85 @@
+name: Build iOS shell
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'script.js'
+      - 'index.html'
+      - 'styles.css'
+      - 'lib/**'
+      - 'easter-eggs/**'
+      - 'midilist.json'
+      - 'volumeAdjustments.json'
+      - 'noteblock-pianola-ios-shell/**'
+      - '.github/workflows/ios-build.yml'
+
+jobs:
+  build:
+    # xcodegen + xcodebuild need a Mac runner.
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Build the web app
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Stage web assets into the iOS shell
+        run: |
+          mkdir -p noteblock-pianola-ios-shell/web
+          rsync -a \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude 'song/' \
+            --exclude 'noteblock-pianola-ios-shell/' \
+            ./ noteblock-pianola-ios-shell/web/
+          # song/ (~278 share-page redirects) exists only for Discord/
+          # Twitter link-preview crawlers on the *web* deploy — no
+          # crawler ever sees the native app's bundle. midi/ and
+          # minecraft3.sf2 are kept; they're the actual content.
+          # The --exclude on noteblock-pianola-ios-shell/ itself stops
+          # rsync from copying the shell into its own staged web/ dir
+          # (it now lives inside the same repo it's rsync-ing from).
+
+      - name: Report bundle size
+        run: |
+          echo "Staged web/ size:"
+          du -sh noteblock-pianola-ios-shell/web
+          echo "midi/ size:"
+          du -sh noteblock-pianola-ios-shell/web/midi 2>/dev/null || echo "(no midi/ directory)"
+          # No hard limit enforced here — there's no App Store size cap
+          # for an AltStore-distributed ipa the way there is for
+          # cellular-download App Store apps, but a multi-hundred-MB
+          # ipa is a sign Phase 2's hybrid model is worth revisiting
+          # sooner rather than later.
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: noteblock-pianola-ios-shell
+        run: xcodegen generate
+
+      - name: Build (unsigned, sanity check only)
+        working-directory: noteblock-pianola-ios-shell
+        run: |
+          xcodebuild -project NoteblockPianola.xcodeproj \
+            -scheme NoteblockPianola \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      # Real signing + ipa export + AltStore-source publishing is
+      # intentionally left out of this workflow — reuse whatever
+      # `xcodebuild archive` → export → AltStore-source steps already
+      # exist for other AltStore-distributed apps (see ios-app-plan.md
+      # Phase 4). This job only proves the shell + staged content
+      # actually compiles on every push.

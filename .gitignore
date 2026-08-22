@@ -1,3 +1,12 @@
+
+# iOS shell — see noteblock-pianola-ios-shell/.gitignore for the
+# nested rules that apply inside that folder too (web/, xcuserdata/,
+# DerivedData/, etc.). These two just need repo-root anchoring since
+# they're referenced from here.
+/noteblock-pianola-ios-shell/web/
+/claude-upload.zip
+*.xcodeproj/
+
 # General
 .DS_Store
 .localized
