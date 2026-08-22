@@ -31,12 +31,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build musicbox bundle
+        # Produces dist/main.js from src/musicbox/ (bundles three.js —
+        # no more CDN <script> tags). dist/ is gitignored; it's built fresh
+        # on every deploy, never committed.
+        run: bun run build
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
+          # Upload entire repository (now includes the freshly built dist/)
           path: '.'
       - name: Deploy to GitHub Pages
         id: deployment

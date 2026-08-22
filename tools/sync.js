@@ -14,8 +14,12 @@
 //                                   so often, not on every single add)
 // ─────────────────────────────────────────────────────────────────
 
-const { execFileSync } = require('child_process');
-const path = require('path');
+import { execFileSync } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 
 const full = process.argv.includes('--full');
 
