@@ -49,11 +49,20 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: com.witchcraftmagazine.noteblockpianola
       CODE_SIGN_STYLE: Automatic
       CODE_SIGN_ENTITLEMENTS: Sources/NoteblockPianola.entitlements
-      INFOPLIST_KEY_UILaunchScreen_Generation: YES
     info:
       path: Sources/Info.plist
       properties:
         CFBundleDisplayName: Noteblock Pianola
+        # INFOPLIST_KEY_UILaunchScreen_Generation (a build setting) is a
+        # no-op here: it's only honored when GENERATE_INFOPLIST_FILE =
+        # YES, i.e. when Xcode generates the whole Info.plist from build
+        # settings. This target uses a static Info.plist (`info.path`
+        # above), so the launch screen has to be declared directly as a
+        # property instead — an empty dict opts into the plain
+        # system-generated launch screen (full-screen, correctly scaled
+        # on all devices). Without this key the app runs in legacy
+        # compatibility scaling and doesn't fill the screen.
+        UILaunchScreen: {}
         UIRequiresFullScreen: true
         UIStatusBarHidden: true
         UISupportedInterfaceOrientations:

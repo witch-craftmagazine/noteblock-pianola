@@ -36,6 +36,7 @@ final class MusicBoxViewController: UIViewController {
         // gated by this setting. Left at the WebKit default
         // deliberately; nothing to override here.
         configuration.allowsInlineMediaPlayback = true
+        installConsoleBridge(into: configuration)
 
         webView = WKWebView(frame: view.bounds, configuration: configuration)
         webView.translatesAutoresizingMaskIntoConstraints = false
@@ -99,9 +100,62 @@ final class MusicBoxViewController: UIViewController {
 
     private var webViewHasFinishedFirstLoad = false
 
+    deinit {
+        #if DEBUG
+        webView?.configuration.userContentController.removeScriptMessageHandler(forName: "consoleBridge")
+        #endif
+    }
+
     private func applySongSlug(_ slug: String) {
         let encoded = slug.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? slug
         webView.evaluateJavaScript("location.search = '?song=\(encoded)';")
+    }
+
+    // MARK: - Console bridge (debug builds only)
+    //
+    // Native/WebKit logs (Xcode's console) can't see anything that
+    // happens *inside* the page — a hung fetch(), a thrown error in
+    // scene.js's async IIFE, an unhandled promise rejection. Those only
+    // ever show up in Safari's Web Inspector, which is easy to forget
+    // to open. This mirrors console.log/warn/error, window.onerror, and
+    // unhandledrejection straight into Xcode's console via a
+    // WKScriptMessageHandler, so page-side failures are visible in the
+    // same place as everything else without a manual attach step.
+    private func installConsoleBridge(into configuration: WKWebViewConfiguration) {
+        #if DEBUG
+        let js = """
+        (function () {
+          function send(level, args) {
+            try {
+              window.webkit.messageHandlers.consoleBridge.postMessage({
+                level: level,
+                message: Array.from(args).map(function (a) {
+                  if (a instanceof Error) return a.stack || a.message;
+                  try { return typeof a === 'string' ? a : JSON.stringify(a); }
+                  catch (e) { return String(a); }
+                }).join(' ')
+              });
+            } catch (e) {}
+          }
+          ['log', 'warn', 'error'].forEach(function (level) {
+            var orig = console[level];
+            console[level] = function () {
+              send(level, arguments);
+              orig.apply(console, arguments);
+            };
+          });
+          window.addEventListener('error', function (e) {
+            send('error', [(e.error && (e.error.stack || e.error.message)) || e.message]);
+          });
+          window.addEventListener('unhandledrejection', function (e) {
+            send('error', ['Unhandled promise rejection: ' + ((e.reason && (e.reason.stack || e.reason.message)) || e.reason)]);
+          });
+        })();
+        """
+        let script = WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        configuration.userContentController.addUserScript(script)
+        configuration.userContentController.add(self, name: "consoleBridge")
+        #endif
     }
 
     // MARK: - Splash
@@ -170,3 +224,15 @@ extension MusicBoxViewController: WKNavigationDelegate {
         showLoadFailure(message: error.localizedDescription)
     }
 }
+
+#if DEBUG
+extension MusicBoxViewController: WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "consoleBridge",
+              let body = message.body as? [String: Any],
+              let level = body["level"] as? String,
+              let text = body["message"] as? String else { return }
+        print("[web:\(level)] \(text)")
+    }
+}
+#endif
