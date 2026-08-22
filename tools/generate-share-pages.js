@@ -17,12 +17,16 @@
 //  Requires: plain Node.js, no dependencies, no network access.
 // ─────────────────────────────────────────────────────────────────
 
-const fs   = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 
 // ── Config — edit if your hosting changes ─────────────────────────
 const BASE_URL   = 'https://witch-craftmagazine.github.io/noteblock-pianola/';
-const SITE_TITLE = 'Cafe Amalfi';
+const SITE_TITLE = 'Noteblock Pianola';
 const OG_IMAGE    = BASE_URL + 'musicbox.webp?v=1';
 const REPO_ROOT   = path.join(__dirname, '..');
 const LIST_PATH   = path.join(REPO_ROOT, 'midilist.json');

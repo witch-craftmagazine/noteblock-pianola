@@ -1,8 +1,8 @@
 # Noteblock Pianola — Project Documentation
 
 **Hosted at:** `https://witch-craftmagazine.github.io/noteblock-pianola/`  
-**Brand name:** Cafe Amalfi  
-**Type:** Static single-page web app (no backend, no build step)
+**Brand name:** Noteblock Pianola
+**Type:** Static single-page web app (no backend; `bun run build` bundles `src/musicbox/` before deploy)
 
 ---
 

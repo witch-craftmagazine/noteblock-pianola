@@ -27,10 +27,13 @@
 //  Run from the repo root.
 // ─────────────────────────────────────────────────────────────────
 
-const fs   = require('fs');
-const path = require('path');
-const { SpessaSynthProcessor, SpessaSynthSequencer, SoundBankLoader, BasicMIDI } =
-  require('../lib/spessasynth_core.js');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { SpessaSynthProcessor, SpessaSynthSequencer, SoundBankLoader, BasicMIDI } from '../lib/spessasynth_core.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 
 // ── Config ─────────────────────────────────────────────────────────
 const REPO_ROOT      = path.join(__dirname, '..');

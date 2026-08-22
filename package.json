@@ -1,0 +1,16 @@
+{
+  "name": "noteblock-pianola",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Noteblock Pianola — an interactive 3D music box that plays MIDI through a Minecraft-themed soundfont.",
+  "type": "module",
+  "scripts": {
+    "dev": "bunx serve . -l 8080",
+    "build": "bun build ./src/musicbox/main.js --outdir ./dist --minify --sourcemap=linked",
+    "sync": "node tools/sync.js",
+    "sync:full": "node tools/sync.js --full"
+  },
+  "dependencies": {
+    "three": "0.169.0"
+  }
+}
