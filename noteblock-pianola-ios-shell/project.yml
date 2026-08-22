@@ -1,0 +1,83 @@
+# project.yml — the only file this iOS shell keeps in git.
+# Regenerate NoteblockPianola.xcodeproj at any time with:
+#   xcodegen generate
+# `*.xcodeproj` is gitignored; nobody hand-edits it.
+
+name: NoteblockPianola
+
+options:
+  bundleIdPrefix: com.witchcraftmagazine
+  deploymentTarget:
+    iOS: "15.0"
+
+settings:
+  MARKETING_VERSION: 1.0.0
+  CURRENT_PROJECT_VERSION: 1
+  TARGETED_DEVICE_FAMILY: "1"   # iPhone only for v1. Flip to "1,2" once
+                                # Phase 0 is confirmed and iPad aspect
+                                # ratios have been checked (see plan
+                                # Phase 3).
+
+targets:
+  NoteblockPianola:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      # `web/` is staged by CI (see .github/workflows/ios-build.yml)
+      # from the web app's own `bun run build` output. It is
+      # gitignored here — CI always regenerates it before `xcodegen
+      # generate` runs, so a stale local copy never gets committed
+      # by accident. See README.md for building it locally too.
+      #
+      # `type: folder` is required, not cosmetic: without it XcodeGen
+      # adds every file under web/ individually to Copy Bundle
+      # Resources, which flattens the whole tree to the top level of
+      # the .app — and several files here share a basename in
+      # different subfolders (dist/main.js vs src/musicbox/main.js;
+      # index.html vs no/index.html; index.js in each easter-eggs/*
+      # subfolder), so that flattening fails the build outright with
+      # "Multiple commands produce...". `type: folder` makes Xcode
+      # copy the whole directory as one unit (a real "web" folder
+      # inside the bundle), which is also what
+      # MusicBoxViewController's `Bundle.main.url(forResource: "web",
+      # withExtension: nil)` expects to find.
+      - path: web
+        type: folder
+        buildPhase: resources
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.witchcraftmagazine.noteblockpianola
+      CODE_SIGN_STYLE: Automatic
+      CODE_SIGN_ENTITLEMENTS: Sources/NoteblockPianola.entitlements
+      INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Noteblock Pianola
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # Background audio: lets the crank/playback survive screen
+        # lock and app backgrounding. Paired with the AVAudioSession
+        # .playback category set in AppDelegate. Verify on-device
+        # (Phase 3) — this is the main reason a native shell is worth
+        # it over bookmarking the site in Safari.
+        UIBackgroundModes:
+          - audio
+        # Deep linking (Phase 3, optional): noteblockpianola://song/<slug>
+        # Wire the matching AppDelegate handler before relying on this.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.witchcraftmagazine.noteblockpianola
+            CFBundleURLSchemes:
+              - noteblockpianola
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+          # No exception needed for the default fully-bundled (file://)
+          # content mode below. If Phase 2 switches to the hybrid mode
+          # (fetching MIDI/assets from witch-craftmagazine.github.io at
+          # runtime), no exception is needed either — GitHub Pages
+          # serves HTTPS and ATS allows HTTPS by default. Only add an
+          # NSExceptionDomains entry here if a future remote host is
+          # HTTP-only.
+    scheme: {}

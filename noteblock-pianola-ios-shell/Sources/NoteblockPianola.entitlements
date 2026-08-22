@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	No entitlements needed for the free-personal-team / AltStore signing
+	path used here. Add Associated Domains once Universal Links are
+	wanted (Phase 3, optional) — requires hosting
+	https://witch-craftmagazine.github.io/.well-known/apple-app-site-association
+	on the same GitHub Pages deploy, e.g.:
+
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:witch-craftmagazine.github.io</string>
+	</array>
+
+	Until that file exists server-side, leave this commented out — an
+	Associated Domains entitlement with no matching AASA file just
+	fails Universal Link verification silently and does nothing.
+	-->
+</dict>
+</plist>
