@@ -164,22 +164,22 @@ function buildUI() {
        takes less vertical room instead of overlapping the model. */
     @media (max-width: 768px) {
       #music-player {
-        bottom: 12px;
-        padding: 10px 14px 8px;
-        gap: 5px;
+        bottom: 14px;
+        padding: 12px 16px 10px;
+        gap: 7px;
         min-width: 0;
         width: 94vw;
       }
-      #mp-track-name { font-size: 11px; }
-      #mp-controls { gap: 6px; }
-      #mp-controls button { padding: 4px 11px; font-size: 12px; }
-      #mp-play { width: 42px; min-width: 42px; }
-      #mp-seek-row, #mp-vol-row { font-size: 10px; gap: 6px; }
-      #mp-list-row { gap: 5px; }
-      #mp-browse-btn { font-size: 10px; padding: 5px 7px; }
+      #mp-track-name { font-size: 12px; }
+      #mp-controls { gap: 8px; }
+      #mp-controls button { padding: 5px 13px; font-size: 13px; }
+      #mp-play { width: 46px; min-width: 46px; }
+      #mp-seek-row, #mp-vol-row { font-size: 11px; gap: 8px; }
+      #mp-list-row { gap: 6px; }
+      #mp-browse-btn { font-size: 11px; padding: 6px 8px; }
     }
     @media (max-width: 768px) and (max-height: 700px) {
-      #music-player { bottom: 8px; padding: 7px 12px 6px; gap: 4px; }
+      #music-player { bottom: 10px; padding: 9px 14px 8px; gap: 6px; }
       #mp-vol-row { display: none; } /* least essential row on very short screens */
     }
     #mp-track-name {
