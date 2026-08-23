@@ -138,6 +138,11 @@
   }
 
   /* Goal 4b: Background toggle button */
+  /* Dormant: no button currently references #bg-toggle (removed from
+     index.html in favor of #github-flap in the same corner). Rule and
+     src/musicbox/bg-toggle.js are both kept intact so the toggle can be
+     reinstated later by re-adding the button markup — no JS changes
+     needed at that point. */
   #bg-toggle {
   position: absolute;
   top: 14px;
@@ -158,7 +163,8 @@
   }
   #bg-toggle:hover { background: rgba(255,255,255,0.12); }
 
-  /* Soundfont switcher button — visually matches #bg-toggle, mirrored to top-left */
+  /* Soundfont switcher button — visually matches the corner buttons/flap
+     pattern, positioned top-left (mirrors #github-flap, top-right) */
   #sf-toggle {
   position: absolute;
   top: 14px;
@@ -179,6 +185,47 @@
   }
   #sf-toggle:hover { background: rgba(255,255,255,0.12); }
   #sf-toggle.active { background: rgba(255,255,255,0.14); border-color: rgba(200,168,90,0.5); }
+
+  /* GitHub source flap — replaces #bg-toggle's old top-right slot.
+     Classic folded-corner ribbon: a square clipped box with a wider
+     label strip rotated 45° through it. The whole square is the tap
+     target, not just the visible diagonal strip. */
+  #github-flap {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 30;
+  width: 84px;
+  height: 84px;
+  overflow: hidden;
+  display: block;
+  text-decoration: none;
+  }
+  #github-flap-label {
+  position: absolute;
+  top: 18px;
+  right: -24px;
+  width: 120px;
+  transform: rotate(45deg);
+  transform-origin: center;
+  background: rgba(20, 12, 8, 0.85);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #e8d5a3;
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-align: center;
+  padding: 4px 0;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  display: block;
+  }
+  #github-flap:hover #github-flap-label { background: rgba(255,255,255,0.14); }
+
+  @media (max-width: 480px) {
+  #github-flap { width: 68px; height: 68px; }
+  #github-flap-label { top: 14px; right: -22px; width: 96px; font-size: 10px; padding: 3px 0; }
+  }
 
   /* ── Minecraft skip overlay ── */
   #mc-overlay {
