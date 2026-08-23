@@ -103,5 +103,20 @@
     "id": "startrekfx",
     "label": "StarTrekFX",
     "file": "StarTrekFX.sf2"
+  },
+  {
+    "id": "chrome-song-maker",
+    "label": "Chrome Song Maker",
+    "file": "Chrome_Song_Maker.sf2"
+  },
+  {
+    "id": "fixed-lion-king-hq-snes-soundfont",
+    "label": "Fixed Lion King HQ SNES Soundfont",
+    "file": "Fixed Lion King HQ SNES Soundfont.sf2"
+  },
+  {
+    "id": "large-zil-bel",
+    "label": "Large Zil Bel",
+    "file": "Large Zil-Bel.sf2"
   }
 ]

@@ -158,6 +158,30 @@ function buildUI() {
       z-index: 100;
       user-select: none;
     }
+    /* Mobile: the panel is the same fixed-bottom size as desktop by
+       default, which eats into the lower portion of the 3D model on
+       short viewports. Compact it — smaller padding/gaps/text — so it
+       takes less vertical room instead of overlapping the model. */
+    @media (max-width: 768px) {
+      #music-player {
+        bottom: 12px;
+        padding: 10px 14px 8px;
+        gap: 5px;
+        min-width: 0;
+        width: 94vw;
+      }
+      #mp-track-name { font-size: 11px; }
+      #mp-controls { gap: 6px; }
+      #mp-controls button { padding: 4px 11px; font-size: 12px; }
+      #mp-play { width: 42px; min-width: 42px; }
+      #mp-seek-row, #mp-vol-row { font-size: 10px; gap: 6px; }
+      #mp-list-row { gap: 5px; }
+      #mp-browse-btn { font-size: 10px; padding: 5px 7px; }
+    }
+    @media (max-width: 768px) and (max-height: 700px) {
+      #music-player { bottom: 8px; padding: 7px 12px 6px; gap: 4px; }
+      #mp-vol-row { display: none; } /* least essential row on very short screens */
+    }
     #mp-track-name {
       font-size: 12px;
       white-space: nowrap;
@@ -535,6 +559,11 @@ function shareUrlFor(index) {
   const url = new URL(location.href);
   url.search = '';
   url.searchParams.set('song', slugFor(index));
+  // Only carry ?sf= when it differs from the default soundfont, so plain
+  // links (the overwhelmingly common case) stay as short as before.
+  if (currentSoundfontId && soundfonts.length && currentSoundfontId !== soundfonts[0].id) {
+    url.searchParams.set('sf', currentSoundfontId);
+  }
   return url.toString();
 }
 
@@ -696,6 +725,9 @@ async function setSoundfont(id) {
 
   currentSoundfontId = id;
   try { localStorage.setItem(SF_STORAGE_KEY, id); } catch (e) { /* non-fatal, e.g. private browsing */ }
+  // Keep the address bar's ?sf= (and any copied link) in sync, same as
+  // syncUrlToTrack() already does for ?song= on track changes.
+  syncUrlToTrack(current);
 
   setStatus(prevStatus || (ready ? 'Ready' : 'Crank the box to play  ↻'));
   window.dispatchEvent(new CustomEvent('soundfont:changed', { detail: { id, label: entry.label } }));
@@ -768,7 +800,16 @@ async function init() {
 
   let savedId = null;
   try { savedId = localStorage.getItem(SF_STORAGE_KEY); } catch (e) { /* non-fatal */ }
-  const initialEntry = soundfonts.find(s => s.id === savedId) || soundfonts[0];
+  // ?sf=<id> deep-link: a lightweight companion to ?song=, read from the
+  // same query string. Unlike ?song=, this doesn't get its own
+  // pre-rendered share page — a soundfont isn't distinct "content" worth
+  // its own Open Graph preview, so it just piggybacks on the existing
+  // param handling here and in shareUrlFor() below.
+  const requestedSfId = params.get('sf');
+  const initialEntry =
+    soundfonts.find(s => s.id === requestedSfId) ||
+    soundfonts.find(s => s.id === savedId) ||
+    soundfonts[0];
   currentSoundfontId = initialEntry.id;
 
   setStatus('Loading soundfont…');
