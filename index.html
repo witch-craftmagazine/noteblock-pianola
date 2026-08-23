@@ -107,8 +107,17 @@
   </div>
 </div>
 
-<!-- Goal 4b: Background toggle -->
-<button id="bg-toggle" title="Toggle background">⬜ BG</button>
+<!-- GitHub source flap — replaces the old background-toggle button in the
+     top-right corner. There's no room at the bottom on mobile (see
+     #music-player), and the BG toggle no longer serves a purpose, so this
+     corner now carries the repo link instead. bg-toggle.js / .bg-image
+     CSS are both left in place, dormant, in case the toggle comes back. -->
+<a id="github-flap"
+   href="https://github.com/witch-craftmagazine/noteblock-pianola"
+   target="_blank" rel="noopener noreferrer"
+   aria-label="View source on GitHub" title="View source on GitHub">
+  <span id="github-flap-label">GitHub</span>
+</a>
 
 <!-- Soundfont switcher: button in src/musicbox/soundfont-toggle.js opens a
      dropdown listing soundfonts/manifest.json entries. -->

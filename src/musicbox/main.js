@@ -4,13 +4,14 @@
 //  Replaces the three CDN <script> tags + ~700 lines of inline
 //  <script> that used to live in index.html. Load order matters:
 //  scene.js defines window.musicBoxAnimations and the first
-//  window.onMusicPlay/Pause/End handlers; particles.js and
-//  bg-toggle.js wrap those handlers (chain pattern), so they must
-//  come after scene.js. soundfont-toggle.js is independent of all
-//  three (it only touches #sf-toggle / window.musicPlayer) but is
-//  listed last to keep bundle init order predictable. `bun run
-//  build` bundles this file (and its three.js import) into
-//  dist/musicbox.js.
+//  window.onMusicPlay/Pause/End handlers; particles.js wraps those
+//  handlers (chain pattern), so it must come after scene.js.
+//  bg-toggle.js and soundfont-toggle.js are both independent of the
+//  onMusicPlay/Pause/End chain — bg-toggle.js is currently dormant
+//  (index.html has no #bg-toggle button; see that file's header
+//  comment) but stays imported so re-adding the button is a
+//  zero-JS-change operation. `bun run build` bundles this file (and
+//  its three.js import) into dist/musicbox.js.
 // ─────────────────────────────────────────────────────────────────
 import './scene.js';
 import './particles.js';

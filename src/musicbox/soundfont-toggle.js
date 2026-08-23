@@ -2,7 +2,8 @@
 //  SOUNDFONT SWITCHER — UI
 //
 //  Small dropdown, opened from the #sf-toggle button (top-left,
-//  mirrors #bg-toggle), listing the entries in
+//  mirrors #github-flap in the top-right corner), listing the
+//  entries in
 //  soundfonts/manifest.json. Selecting one calls
 //  window.musicPlayer.setSoundfont(id).
 //
