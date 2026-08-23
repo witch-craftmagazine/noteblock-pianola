@@ -27,6 +27,20 @@
   overflow: hidden;
   }
 
+  /* Mobile: the music box reads small and low on narrow viewports.
+     Scale + shift it up with a CSS transform rather than touching
+     Three.js sizing — transform doesn't affect clientWidth/clientHeight,
+     so renderer.setSize() / updateCameraForViewport() in scene.js (which
+     read those directly) are unaffected. #wind-hint and the easter-egg
+     overlays are children of #canvas-container, so they scale/shift
+     along with the box, which keeps them visually anchored to it. */
+  @media (max-width: 768px) {
+  #canvas-container {
+  transform: scale(1.2) translateY(-6%);
+  transform-origin: center top;
+  }
+  }
+
   canvas {
   display: block;
   width: 100% !important;
@@ -143,6 +157,28 @@
   user-select: none;
   }
   #bg-toggle:hover { background: rgba(255,255,255,0.12); }
+
+  /* Soundfont switcher button — visually matches #bg-toggle, mirrored to top-left */
+  #sf-toggle {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 30;
+  background: rgba(20, 12, 8, 0.75);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #e8d5a3;
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  padding: 6px 12px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s;
+  user-select: none;
+  }
+  #sf-toggle:hover { background: rgba(255,255,255,0.12); }
+  #sf-toggle.active { background: rgba(255,255,255,0.14); border-color: rgba(200,168,90,0.5); }
 
   /* ── Minecraft skip overlay ── */
   #mc-overlay {

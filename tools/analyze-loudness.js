@@ -38,7 +38,7 @@ const __dirname  = path.dirname(__filename);
 // ── Config ─────────────────────────────────────────────────────────
 const REPO_ROOT      = path.join(__dirname, '..');
 const LIST_PATH       = path.join(REPO_ROOT, 'midilist.json');
-const SF2_PATH         = path.join(REPO_ROOT, 'minecraft3.sf2');
+const SF2_PATH         = path.join(REPO_ROOT, 'soundfonts', 'minecraft3.sf2');
 const OUT_PATH        = path.join(REPO_ROOT, 'volumeAdjustments.json');
 
 const SAMPLE_RATE     = 22050;  // lower than playback rate — plenty for RMS, much faster to render

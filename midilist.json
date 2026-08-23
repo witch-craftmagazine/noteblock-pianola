@@ -1,5 +1,4 @@
 [
-  "./midi/_1923_-_.mid",
   "./midi/10th_street_rag_1914_-_bowman.mid",
   "./midi/11th_street_rag_1918_-_bowman.mid",
   "./midi/12th_street_rag_1914_-_bowman_qrs_1188.mid",
@@ -317,8 +316,8 @@
   "./midi/something_there_1991_-_menken.mid",
   "./midi/sometime_1918_-_friml.mid",
   "./midi/sousa_march_medley_1890_-_sousa.mid",
+  "./midi/spain_1971_-_corea_2.mid",
   "./midi/spain_1971_-_corea.mid",
-  "./midi/spain_1985_-_corea.mid",
   "./midi/spanish_flea_1965_-_wechter.mid",
   "./midi/spring_song_1901__alstyne.mid",
   "./midi/standing_on_the_porch_1935_-_bee.mid",
@@ -397,5 +396,6 @@
   "./midi/youre_a_great_big_lonesome_baby_1917_-_gershwin.mid",
   "./midi/youve_got_a_friend_in_me_1995_-_newman.mid",
   "./midi/zero_to_hero_1997_-_menken.mid",
-  "./midi/zigzag_rag_1926_-_emmerich.mid"
+  "./midi/zigzag_rag_1926_-_emmerich.mid",
+  "./midi/авиамарш_1923_-_хаит.mid"
 ]

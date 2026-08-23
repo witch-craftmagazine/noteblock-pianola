@@ -1,13 +1,21 @@
 // ─────────────────────────────────────────────────────────────────
 //  MUSIC BOX — MIDI PLAYER
-//  Uses spessasynth_lib with minecraft3.sf2
+//  Uses spessasynth_lib. Soundfont list comes from soundfonts/manifest.json
+//  (switchable at runtime — see setSoundfont() and src/musicbox/soundfont-toggle.js).
 //  Reads track list from midilist.json
 // ─────────────────────────────────────────────────────────────────
 
 import { Sequencer, WorkletSynthesizer }
 from "./lib/spessasynth_lib.js";
 
-const SF2_PATH     = './minecraft3.sf2';
+const SOUNDFONTS_DIR      = './soundfonts/';
+const SOUNDFONTS_MANIFEST = './soundfonts/manifest.json';
+const SF_STORAGE_KEY      = 'noteblock-pianola:soundfont';
+// Fallback used only if soundfonts/manifest.json can't be fetched at all
+// (e.g. it's missing) — keeps the player working with the one bank that
+// used to be hardcoded here.
+const FALLBACK_SOUNDFONTS = [{ id: 'minecraft3', label: 'Minecraft', file: 'minecraft3.sf2' }];
+
 const WORKLET_PATH = './lib/spessasynth_processor.min.js';
 const LIST_PATH    = './midilist.json';
 const UI_SOUND_PATH = './sounds/click.ogg';
@@ -27,6 +35,13 @@ let browseSort    = 'title';
 let browseOpen    = false;
 let volumeAdjustments = {}; // { "<slug>": gainMultiplier } — from tools/analyze-loudness.js
 let currentTrackGain  = 1.0; // resolved multiplier for whatever track is currently loaded
+
+// ── Soundfont switching ───────────────────────────────────────────
+let soundfonts          = [];    // [{ id, label, file }] — from soundfonts/manifest.json
+let currentSoundfontId  = null;
+let soundfontSwitching  = false; // guards overlapping switches
+let sfBankCounter       = 0;     // gives each bank registered with the synth a unique id
+let activeBankId        = null;  // the bank id currently registered in the running synth, if any
 
 // P5: Volume is stored as a slider position (0–1), converted to gain via
 // a 4th-power curve on the way to the synth. This makes the slider feel
@@ -615,6 +630,79 @@ function setStatus(msg) {
   if (ui.status) ui.status.textContent = msg;
 }
 
+// ─────────────────────────────────────────────────────────────────
+//  SOUNDFONT SWITCHING
+// ─────────────────────────────────────────────────────────────────
+function soundfontUrl(entry) {
+  return SOUNDFONTS_DIR + entry.file;
+}
+
+async function fetchSoundfontBuffer(entry) {
+  const res = await fetch(soundfontUrl(entry));
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${soundfontUrl(entry)}`);
+  return res.arrayBuffer();
+}
+
+function listSoundfonts() {
+  return soundfonts.map(s => ({ ...s, active: s.id === currentSoundfontId }));
+}
+
+// Switches the active soundfont, live if audio is already running.
+// Uses addSoundBank-then-deleteSoundBank so there's always at least
+// one bank registered (soundBankManager refuses to delete down to zero).
+async function setSoundfont(id) {
+  if (soundfontSwitching) return false;
+  const entry = soundfonts.find(s => s.id === id);
+  if (!entry) {
+    console.warn(`[MusicPlayer] Unknown soundfont id "${id}"`);
+    return false;
+  }
+  if (id === currentSoundfontId && (window._sf2Buffer || activeBankId)) return true;
+
+  soundfontSwitching = true;
+  const prevStatus = ui.status ? ui.status.textContent : '';
+  setStatus(`Loading ${entry.label}…`);
+
+  let buf;
+  try {
+    buf = await fetchSoundfontBuffer(entry);
+  } catch (e) {
+    setStatus(`⚠ Could not load ${entry.file}`);
+    console.error('[MusicPlayer] Soundfont fetch failed:', e);
+    soundfontSwitching = false;
+    return false;
+  }
+
+  try {
+    if (synth) {
+      // Live swap: register the new bank first, then drop the old one —
+      // spessasynth's soundBankManager won't delete the last remaining bank.
+      const newBankId = `bank-${sfBankCounter++}`;
+      await synth.soundBankManager.addSoundBank(buf, newBankId);
+      const oldBankId = activeBankId;
+      activeBankId = newBankId;
+      if (oldBankId) await synth.soundBankManager.deleteSoundBank(oldBankId);
+    } else {
+      // No AudioContext yet (user hasn't interacted) — just stash the
+      // buffer; ensureAudioContext() registers it on first play.
+      window._sf2Buffer = buf;
+    }
+  } catch (e) {
+    setStatus('⚠ Could not switch soundfont');
+    console.error('[MusicPlayer] Soundfont switch failed:', e);
+    soundfontSwitching = false;
+    return false;
+  }
+
+  currentSoundfontId = id;
+  try { localStorage.setItem(SF_STORAGE_KEY, id); } catch (e) { /* non-fatal, e.g. private browsing */ }
+
+  setStatus(prevStatus || (ready ? 'Ready' : 'Crank the box to play  ↻'));
+  window.dispatchEvent(new CustomEvent('soundfont:changed', { detail: { id, label: entry.label } }));
+  soundfontSwitching = false;
+  return true;
+}
+
 async function getMidiBuffer(path) {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${path}`);
@@ -668,15 +756,27 @@ async function init() {
   updateTrackName(current);
   syncUrlToTrack(current);
 
-  // 2. Load soundfont
+  // 2. Load soundfont manifest, then the selected (or default) soundfont
+  try {
+    const res = await fetch(SOUNDFONTS_MANIFEST);
+    soundfonts = res.ok ? await res.json() : FALLBACK_SOUNDFONTS;
+    if (!Array.isArray(soundfonts) || soundfonts.length === 0) soundfonts = FALLBACK_SOUNDFONTS;
+  } catch (e) {
+    console.warn('[MusicPlayer] Could not load soundfonts/manifest.json — using fallback', e);
+    soundfonts = FALLBACK_SOUNDFONTS;
+  }
+
+  let savedId = null;
+  try { savedId = localStorage.getItem(SF_STORAGE_KEY); } catch (e) { /* non-fatal */ }
+  const initialEntry = soundfonts.find(s => s.id === savedId) || soundfonts[0];
+  currentSoundfontId = initialEntry.id;
+
   setStatus('Loading soundfont…');
   let sfBuffer;
   try {
-    const res = await fetch(SF2_PATH);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    sfBuffer = await res.arrayBuffer();
+    sfBuffer = await fetchSoundfontBuffer(initialEntry);
   } catch (e) {
-    setStatus('⚠ Could not load minecraft3.sf2');
+    setStatus(`⚠ Could not load ${initialEntry.file}`);
     console.error(e);
     return;
   }
@@ -745,7 +845,9 @@ async function ensureAudioContext() {
   synth.connect(compressor);
   compressor.connect(context.destination);
 
-  await synth.soundBankManager.addSoundBank(window._sf2Buffer, 'minecraft');
+  const initialBankId = `bank-${sfBankCounter++}`;
+  await synth.soundBankManager.addSoundBank(window._sf2Buffer, initialBankId);
+  activeBankId = initialBankId;
 
   // P5: Apply the perceptual gain curve to the pending slider value,
   // combined with this track's loudness correction (if any).
@@ -987,6 +1089,11 @@ window.musicPlayer = {
   prev:      prevTrack,
   shuffle:   shuffleTrack,
   isPlaying: () => playing,
+
+  // Soundfont switching — used by src/musicbox/soundfont-toggle.js
+  listSoundfonts,
+  getSoundfont: () => currentSoundfontId,
+  setSoundfont,
 };
 
 // ─────────────────────────────────────────────────────────────────
