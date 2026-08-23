@@ -2,7 +2,11 @@ A fun noteblock player piano!
 
 Custom model animation made using blockbench, rendered with threejs. All sound is handled with spessasynth and a modified instrument transposed sf2 file.
 
-Midis sourced from:
+## Sources
+
+Please support these projects, without them this wouldn't be possible.
+
+### Midis sourced from:
 - https://pianola.co.nz/public/
 - https://musescore.com/
 - https://bitmidi.com/
@@ -17,6 +21,11 @@ A few in my library are sourced from the following, but I don't think any are co
 - https://github.com/pianoroll/SUPRA
 - https://www.kunstderfuge.com/piano-rolls.htm
 
+### Soundfonts sourced from:
+- https://www.polyphone.io/
+- https://musical-artifacts.com/
+
+Contact me for removal, this is a personal project and is not important. 
 
 ## Dependencies
 
