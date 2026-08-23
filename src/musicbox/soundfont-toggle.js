@@ -40,9 +40,16 @@
       position: absolute;
       top: 52px;
       left: 14px;
-      z-index: 31;
+      /* #music-player (script.js) is z-index 100 and fixed to the bottom
+         of the viewport. On short mobile screens this panel's list can
+         grow tall enough to reach that area — it needs to render above
+         the control panel, not behind it, when that happens. */
+      z-index: 110;
       min-width: 190px;
       max-width: 260px;
+      max-height: min(360px, 60vh);
+      display: flex;
+      flex-direction: column;
       background: rgba(20,12,8,0.95);
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 10px;
@@ -54,6 +61,29 @@
       transform: translateY(-4px);
       pointer-events: none;
       transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+    #sf-search-row {
+      padding: 2px 4px 6px;
+      flex: 0 0 auto;
+    }
+    #sf-search {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: #e8d5a3;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 6px 8px;
+      outline: none;
+    }
+    #sf-search:focus { border-color: rgba(200,168,90,0.5); }
+    #sf-search::placeholder { color: rgba(232,213,163,0.45); }
+    #sf-list {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1 1 auto;
+      min-height: 0;
     }
     #sf-panel.visible {
       opacity: 1;
@@ -104,10 +134,25 @@
   panel.setAttribute('aria-label', 'Soundfont selector');
   panel.innerHTML = `
     <div id="sf-panel-title">Soundfont</div>
+    <div id="sf-search-row" style="display:none;">
+      <input id="sf-search" type="text" placeholder="Search soundfonts…" autocomplete="off" />
+    </div>
     <div id="sf-list"><div class="sf-empty">Loading…</div></div>
   `;
   document.body.appendChild(panel);
   listEl = panel.querySelector('#sf-list');
+  const searchRow = panel.querySelector('#sf-search-row');
+  const searchInput = panel.querySelector('#sf-search');
+
+  // Only worth showing a search box once the list is long enough that
+  // scanning it beats typing — keeps the panel minimal for the common
+  // case of a handful of soundfonts, but scales cleanly as more are added.
+  const SEARCH_THRESHOLD = 8;
+  let filterText = '';
+  searchInput.addEventListener('input', () => {
+    filterText = searchInput.value.trim().toLowerCase();
+    renderList();
+  });
 
   function activeId() {
     return (window.musicPlayer && typeof window.musicPlayer.getSoundfont === 'function')
@@ -116,12 +161,24 @@
   }
 
   function renderList() {
+    searchRow.style.display = manifest.length > SEARCH_THRESHOLD ? 'block' : 'none';
+
     if (!manifest.length) {
       listEl.innerHTML = '<div class="sf-empty">No soundfonts found</div>';
       return;
     }
+
+    const filtered = filterText
+      ? manifest.filter(s => s.label.toLowerCase().includes(filterText))
+      : manifest;
+
+    if (!filtered.length) {
+      listEl.innerHTML = '<div class="sf-empty">No matches</div>';
+      return;
+    }
+
     const current = activeId();
-    listEl.innerHTML = manifest.map(entry => `
+    listEl.innerHTML = filtered.map(entry => `
       <button class="sf-entry${entry.id === current ? ' active' : ''}" data-id="${entry.id}" role="menuitemradio" aria-checked="${entry.id === current}">
         <span class="sf-check">✓</span>${entry.label}
       </button>
@@ -184,11 +241,29 @@
     }
   }
 
+  // Keeps the panel from extending down behind #music-player (the fixed
+  // bottom control bar from script.js). Rather than rely on z-index
+  // alone — which fixes *stacking* but the panel would still visually
+  // run underneath/behind the bar — cap the panel's height to the space
+  // actually available above it, so the list scrolls internally instead.
+  function constrainToViewport() {
+    const btnRect = btn.getBoundingClientRect();
+    const mp = document.getElementById('music-player');
+    const mpTop = mp ? mp.getBoundingClientRect().top : window.innerHeight;
+    const margin = 12;
+    const available = Math.max(120, Math.min(mpTop, window.innerHeight) - btnRect.bottom - margin);
+    panel.style.maxHeight = Math.min(360, available) + 'px';
+  }
+
   function openPanel() {
     open = true;
+    filterText = '';
+    searchInput.value = '';
+    constrainToViewport();
     panel.classList.add('visible');
     btn.classList.add('active');
     highlightActive();
+    renderList();
     // Deferred so the click that opened the panel (still bubbling at the
     // point openPanel() runs) doesn't immediately trip onOutsideClick.
     setTimeout(() => {
@@ -196,6 +271,7 @@
       document.addEventListener('click', onOutsideClick, true);
     }, 0);
     document.addEventListener('keydown', onKeydown);
+    window.addEventListener('resize', constrainToViewport);
   }
 
   function closePanel() {
@@ -204,6 +280,7 @@
     btn.classList.remove('active');
     document.removeEventListener('click', onOutsideClick, true);
     document.removeEventListener('keydown', onKeydown);
+    window.removeEventListener('resize', constrainToViewport);
   }
 
   function onOutsideClick(e) {
