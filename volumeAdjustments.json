@@ -130,7 +130,6 @@
   "jazzy_note_blocks_2018_-_aarongrooves": 1.411,
   "jet_song_1957_-_bernstein_peterson": 0.749,
   "judy_garland_selection_1940_-_various": 1.449,
-  "jump_in_the_line_1946_-_kitchener": 0.741,
   "just_the_two_of_us_1980_-_bill_withers": 0.73,
   "just_the_way_you_are_1977_-_joel": 0.594,
   "kansas_city_blues_1914_-_bowman_vocalstyle_11199": 1.09,
@@ -239,7 +238,6 @@
   "someday_my_prince_will_come_1961_-_davis": 0.618,
   "something_there_1991_-_menken": 0.74,
   "sometime_1918_-_friml": 1.164,
-  "sous_le_ciel_de_paris_1951_-_giraud": 2.5,
   "sousa_march_medley_1890_-_sousa": 1.641,
   "spain_1971_-_corea": 2.5,
   "spain_1985_-_corea": 2.5,
@@ -389,10 +387,21 @@
   "corta_jaca_gaucho_1895_-_gonzaga_gomes": 0.788,
   "il_canto_degli_italiani_2021_novaro_longo": 0.434,
   "the_planets_op._32_jupiter_1916_-_holst": 0.4,
+  "_1923_-_": 0.4,
+  "pomp_and_circumstance_march_no1_1901_-_elgar": 0.4,
+  "coconut_champagne_1993_-_diblasio": 0.4,
+  "dazzling_1983_-_casiopea": 0.4,
+  "departing_from_new_shibuya_terminal_2013_-_mukaiya": 0.793,
+  "domino_line_1981_-_casiopea": 0.4,
+  "in_a_sentimental_mood_1935_-_ellington": 0.658,
+  "la_fiesta_1972_-_corea": 0.511,
+  "swallow_1979_-_casiopea": 0.512,
+  "take_me_1980_-_casiopea": 0.701,
+  "tears_of_the_star_1979_-_casiopea": 0.943,
   "__meta__": {
     "targetRms": 0.027227058943247364,
-    "trackCount": 390,
+    "trackCount": 399,
     "lastFullRun": "2026-06-24T02:35:54.366Z",
-    "updatedAt": "2026-06-25T03:06:25.748Z"
+    "updatedAt": "2026-08-23T07:58:51.591Z"
   }
 }
