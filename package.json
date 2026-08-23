@@ -8,7 +8,8 @@
     "dev": "bunx serve . -l 8080",
     "build": "bun build ./src/musicbox/main.js --outdir ./dist --minify --sourcemap=linked",
     "sync": "node tools/sync.js",
-    "sync:full": "node tools/sync.js --full"
+    "sync:full": "node tools/sync.js --full",
+    "manifest:soundfonts": "node tools/generate-soundfont-manifest.js"
   },
   "dependencies": {
     "three": "0.169.0"

@@ -16,9 +16,16 @@ MIDI_DIR = "midi"
 
 
 def normalize_filename(name):
+    # NOTE: this used to be name.lower() + re.sub(r"[^a-z0-9_\-\.]", "", name),
+    # which silently deleted every non-ASCII character. Any filename with
+    # Cyrillic (or Greek, CJK, etc.) text — e.g. "Чайковский - Времена года.mid"
+    # — came out as garbage or an empty string, so the song's title never
+    # rendered anywhere in the app. str.lower() and \w are Unicode-aware in
+    # Python 3, so this keeps letters/digits from any script while still
+    # stripping punctuation that's actually unsafe in filenames.
     name = name.lower()
     name = name.replace(" ", "_")
-    name = re.sub(r"[^a-z0-9_\-\.]", "", name)  # keep only allowed chars
+    name = re.sub(r"[^\w\-\.]", "", name, flags=re.UNICODE)  # keep any script's letters/digits
     return name
 
 

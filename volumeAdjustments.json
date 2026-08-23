@@ -240,7 +240,6 @@
   "sometime_1918_-_friml": 1.164,
   "sousa_march_medley_1890_-_sousa": 1.641,
   "spain_1971_-_corea": 2.5,
-  "spain_1985_-_corea": 2.5,
   "spanish_flea_1965_-_wechter": 1.741,
   "stardust_1927_-_carmichael": 1.033,
   "sunbeams_1929_william_francis_wirges": 0.4,
@@ -387,7 +386,6 @@
   "corta_jaca_gaucho_1895_-_gonzaga_gomes": 0.788,
   "il_canto_degli_italiani_2021_novaro_longo": 0.434,
   "the_planets_op._32_jupiter_1916_-_holst": 0.4,
-  "_1923_-_": 0.4,
   "pomp_and_circumstance_march_no1_1901_-_elgar": 0.4,
   "coconut_champagne_1993_-_diblasio": 0.4,
   "dazzling_1983_-_casiopea": 0.4,
@@ -398,10 +396,12 @@
   "swallow_1979_-_casiopea": 0.512,
   "take_me_1980_-_casiopea": 0.701,
   "tears_of_the_star_1979_-_casiopea": 0.943,
+  "spain_1971_-_corea_2": 2.5,
+  "авиамарш_1923_-_хаит": 0.4,
   "__meta__": {
     "targetRms": 0.027227058943247364,
     "trackCount": 399,
     "lastFullRun": "2026-06-24T02:35:54.366Z",
-    "updatedAt": "2026-08-23T07:58:51.591Z"
+    "updatedAt": "2026-08-23T20:02:17.497Z"
   }
 }
