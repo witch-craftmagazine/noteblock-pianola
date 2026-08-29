@@ -41,6 +41,10 @@ const CONFIG = {
   DRAG_PX_PER_REV: 120,
   // How many revolutions needed to trigger play
   WINDS_TO_PLAY: 1.5,
+  // Ratchet feel: discrete haptic "clicks" per revolution while dragging
+  // the crank (see onCrankNotch below) — separate from WINDS_TO_PLAY,
+  // which is the one-time "wound up enough, start playing" moment.
+  CRANK_NOTCHES_PER_REV: 8,
 };
 
 // ─────────────────────────────────────────────
@@ -329,6 +333,7 @@ let isDragging  = false;
 let lastMouseX  = 0;
 let lastMouseY  = 0;
 let windAccum  = 0;
+let lastNotch  = 0; // last CRANK_NOTCHES_PER_REV "tick" boundary crossed — see onCrankNotch below
 let hasPlayed  = false;
 let lidOpen  = false;
 let crankMeshes  = [];
@@ -353,6 +358,10 @@ function hitTest(event, meshes) {
 
 // ── Lid toggle ─────────────────────────────────
 function toggleLid() {
+  // Discrete, user-meaningful tap on the 3D model — same no-op-if-
+  // undefined extension-point pattern as window.onMusic*/onCrankTurn,
+  // for native shells to hook (see NowPlayingBridge.swift).
+  if (window.onUiButtonTap) window.onUiButtonTap();
   if (lidOpen) {
   window.musicBoxAnimations.play('close');
   lidOpen = false;
@@ -392,6 +401,20 @@ canvas.addEventListener('pointermove', e => {
       const forwardDelta = vertDelta >= Math.abs(dx) ? vertDelta : horizDelta;
 
       windAccum += forwardDelta;
+
+      // Ratchet feel: fire a discrete "notch" haptic each time dragging
+      // crosses a 1/CRANK_NOTCHES_PER_REV fraction of a revolution — not
+      // just once at the WINDS_TO_PLAY threshold below. A single fast
+      // pointermove tick can cross several notches at once (e.g. a quick
+      // flick); only fire once per tick regardless, matching a real
+      // ratchet's natural feel rather than queuing up a haptic per notch
+      // (which would feel like stutter, not a click).
+      const notchSize = CONFIG.DRAG_PX_PER_REV / CONFIG.CRANK_NOTCHES_PER_REV;
+      const currentNotch = Math.floor(windAccum / notchSize);
+      if (currentNotch > lastNotch) {
+        lastNotch = currentNotch;
+        if (window.onCrankNotch) window.onCrankNotch();
+      }
 
       if (!action.isRunning() && !_initializedActions.has(action)) {
         action.reset();
@@ -439,6 +462,7 @@ canvas.addEventListener('pointerdown', e => {
       window.musicPlayer.pause();
     }
     windAccum = 0;
+    lastNotch = 0;
     hasPlayed = false;
   } else if (overLid) {
     toggleLid();
@@ -454,11 +478,12 @@ window.addEventListener('pointerup', e => {
   if (windsCompleted >= CONFIG.WINDS_TO_PLAY && !hasPlayed) {
     hasPlayed = true;
     if (window.musicPlayer) window.musicPlayer.play();
-    // Discrete, user-meaningful crank signal — fires once per completed
-    // wind-up (not per pointermove tick), mirroring the window.onMusic*
-    // no-op-if-undefined extension-point pattern from script.js so native
-    // shells (see NowPlayingBridge.swift) can hook it without this file
-    // needing to know anything native exists.
+    // Distinct from onCrankNotch (above) — this fires exactly once, the
+    // moment enough winding has accumulated to actually start playback,
+    // not per-notch. Mirrors the window.onMusic* no-op-if-undefined
+    // extension-point pattern from script.js so native shells (see
+    // NowPlayingBridge.swift) can hook it without this file needing to
+    // know anything native exists.
     if (window.onCrankTurn) window.onCrankTurn();
   }
 });

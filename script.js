@@ -102,6 +102,24 @@ function playUiSound() {
   } catch (e) { /* non-fatal */ }
 }
 
+// Discrete "a UI button was tapped" signal for native shells — same
+// no-op-if-undefined extension-point pattern as window.onMusic*/
+// onCrankTurn/onCrankNotch (see NowPlayingBridge.swift).
+//
+// Deliberately NOT called from playUiSound() itself, even though that's
+// the existing per-click sound-effect trigger and every button already
+// calls it: play/prev/next/shuffle change playback/track state, and
+// that state change already fires window.onMusicPlay/onMusicPause via
+// togglePlay()/loadTrack() a moment later — routing this through
+// playUiSound() too would double up the haptic on those four buttons
+// (one from the tap, one from the resulting state change) while
+// buttons that don't change playback state (browse, share, sort,
+// upload) only need the one. Call this explicitly at those sites
+// instead, listed individually below.
+function notifyUiTap() {
+  if (window.onUiButtonTap) window.onUiButtonTap();
+}
+
 // ── UI refs ───────────────────────────────────────────────────────
 let ui = {};
 
@@ -462,14 +480,15 @@ function buildBrowsePanel() {
   ui.results      = overlay.querySelector('#mp-results');
   ui.resultsCount = overlay.querySelector('#mp-results-count');
 
-  ui.browseBtn.addEventListener('click', () => { playUiSound(); openBrowse(); });
+  ui.browseBtn.addEventListener('click', () => { playUiSound(); notifyUiTap(); openBrowse(); });
   ui.shareBtn.addEventListener('click', copyShareLink);
-  ui.browseClose.addEventListener('click', closeBrowse);
+  ui.browseClose.addEventListener('click', () => { notifyUiTap(); closeBrowse(); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeBrowse(); });
   ui.search.addEventListener('input', renderResults);
   ui.sortBtns.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.sort === browseSort);
     btn.addEventListener('click', () => {
+      notifyUiTap();
       browseSort = btn.dataset.sort;
       ui.sortBtns.forEach(b => b.classList.toggle('active', b === btn));
       renderResults();
@@ -590,6 +609,7 @@ function syncUrlToTrack(index) {
 
 async function copyShareLink() {
   playUiSound();
+  notifyUiTap();
   const url = previewUrlFor(current);
   const prevStatus = ui.status.textContent;
   try {
@@ -1041,6 +1061,7 @@ async function handleUpload() {
   }
 
   playUiSound();
+  notifyUiTap();
   setStatus('Loading uploaded file…');
 
   await ensureAudioContext();
