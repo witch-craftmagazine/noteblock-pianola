@@ -2,121 +2,121 @@
   {
     "id": "minecraft3",
     "label": "Minecraft (default 1.26.1+)",
-    "file": "minecraft3.sf2"
+    "file": "minecraft3.sf3"
   },
   {
     "id": "minecraft2",
     "label": "Minecraft (classic)",
-    "file": "minecraft2.sf2"
+    "file": "minecraft2.sf3"
   },
   {
     "id": "8bitsf",
     "label": "8bit, loud warning",
-    "file": "8bitsf.SF2"
+    "file": "8bitsf.sf3"
   },
   {
     "id": "minecraft-gm",
     "label": "Minecraft no instrument shift",
-    "file": "Minecraft_GM.sf2"
+    "file": "Minecraft_GM.sf3"
   },
   {
     "id": "minecraft1",
     "label": "Minecraft C418 broken",
-    "file": "minecraft1.sf2"
+    "file": "minecraft1.sf3"
   },
   {
     "id": "rotary-hammond-organ",
     "label": "Rotary Hammond Organ",
-    "file": "Rotary_Hammond_Organ.sf2"
+    "file": "Rotary_Hammond_Organ.sf3"
   },
   {
     "id": "smw-new-version",
     "label": "Super Mario World, broken",
-    "file": "SMW_New_Version_.sf2"
+    "file": "SMW_New_Version_.sf3"
   },
   {
     "id": "sound-wiimenu-data",
     "label": "Wii Menu Tones",
-    "file": "Sound_WiiMenu_data.sf2"
+    "file": "Sound_WiiMenu_data.sf3"
   },
   {
     "id": "super-nintendo-unofficial-update",
     "label": "Super Nintendo Update",
-    "file": "Super_Nintendo_Unofficial_update.sf2"
+    "file": "Super_Nintendo_Unofficial_update.sf3"
   },
   {
     "id": "kk-slider",
     "label": "KK Slider Animal Crossing",
-    "file": "KK_Slider.sf2"
+    "file": "KK_Slider.sf3"
   },
   {
     "id": "mariokart-wii",
     "label": "MarioKart Wii",
-    "file": "MarioKart Wii.sf2"
+    "file": "MarioKart Wii.sf3"
   },
   {
     "id": "roland-sc-8820",
     "label": "Roland SC 8820",
-    "file": "Roland SC-8820.sf2"
+    "file": "Roland SC-8820.sf3"
   },
   {
     "id": "yoshi-s-island-small-collection",
     "label": "Yoshi's Island Small Collection",
-    "file": "Yoshi_s_Island_Small_collection.sf2"
+    "file": "Yoshi_s_Island_Small_collection.sf3"
   },
   {
     "id": "default-windows-midi",
     "label": "Default Windows MIDI",
-    "file": "Default Windows MIDI.sf2"
+    "file": "Default Windows MIDI.sf3"
   },
   {
     "id": "fender-blues-deluxe",
     "label": "Fender Blues Deluxe",
-    "file": "Fender_Blues_Deluxe.sf2"
+    "file": "Fender_Blues_Deluxe.sf3"
   },
   {
     "id": "sonic-the-hedgehog-2-2",
     "label": "Sonic The Hedgehog 2",
-    "file": "Sonic_the_Hedgehog_2.sf2"
+    "file": "Sonic_the_Hedgehog_2.sf3"
   },
   {
     "id": "ancient-instruments-of-the-world",
     "label": "Ancient Instruments Of The World",
-    "file": "Ancient Instruments Of The World.sf2"
+    "file": "Ancient Instruments Of The World.sf3"
   },
   {
     "id": "decrescendo-accordion",
     "label": "Decrescendo Accordion",
-    "file": "Decrescendo Accordion.sf2"
+    "file": "Decrescendo Accordion.sf3"
   },
   {
     "id": "ken-griffey-jr-presents-major-league-baseball",
     "label": "Ken Griffey Jr. Presents Major League Baseball",
-    "file": "Ken_Griffey_Jr._Presents_Major_League_Baseball.sf2"
+    "file": "Ken_Griffey_Jr._Presents_Major_League_Baseball.sf3"
   },
   {
     "id": "napoleonic-cannon",
     "label": "Napoleonic Cannon",
-    "file": "Napoleonic_Cannon.sf2"
+    "file": "Napoleonic_Cannon.sf3"
   },
   {
     "id": "startrekfx",
     "label": "StarTrekFX",
-    "file": "StarTrekFX.sf2"
+    "file": "StarTrekFX.sf3"
   },
   {
     "id": "chrome-song-maker",
     "label": "Chrome Song Maker",
-    "file": "Chrome_Song_Maker.sf2"
+    "file": "Chrome_Song_Maker.sf3"
   },
   {
     "id": "fixed-lion-king-hq-snes-soundfont",
     "label": "Fixed Lion King HQ SNES Soundfont",
-    "file": "Fixed Lion King HQ SNES Soundfont.sf2"
+    "file": "Fixed Lion King HQ SNES Soundfont.sf3"
   },
   {
     "id": "large-zil-bel",
     "label": "Large Zil Bel",
-    "file": "Large Zil-Bel.sf2"
+    "file": "Large Zil-Bel.sf3"
   }
 ]

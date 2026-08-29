@@ -9,7 +9,8 @@
     "build": "bun build ./src/musicbox/main.js --outdir ./dist --minify --sourcemap=linked",
     "sync": "node tools/sync.js",
     "sync:full": "node tools/sync.js --full",
-    "manifest:soundfonts": "node tools/generate-soundfont-manifest.js"
+    "manifest:soundfonts": "node tools/generate-soundfont-manifest.js",
+    "convert:soundfonts": "node tools/convert-sf2-to-sf3.js"
   },
   "dependencies": {
     "three": "0.169.0"

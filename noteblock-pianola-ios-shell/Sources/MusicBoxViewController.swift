@@ -84,6 +84,7 @@ private final class LocalWebSchemeHandler: NSObject, WKURLSchemeHandler {
         case "json": return "application/json; charset=utf-8"
         case "glb": return "model/gltf-binary"
         case "sf2": return "application/octet-stream"
+        case "sf3": return "application/octet-stream" // SF3 = SF2 container w/ Vorbis-compressed samples; no registered MIME type either
         case "mid", "midi": return "audio/midi"
         case "png": return "image/png"
         case "webp": return "image/webp"

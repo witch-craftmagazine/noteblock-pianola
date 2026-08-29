@@ -2,15 +2,16 @@
 // ─────────────────────────────────────────────────────────────────
 //  GENERATE SOUNDFONT MANIFEST
 //
-//  Scans ./soundfonts/*.sf2 and reconciles it with
-//  soundfonts/manifest.json:
+//  Scans ./soundfonts/*.sf2 and ./soundfonts/*.sf3 and reconciles it
+//  with soundfonts/manifest.json:
 //
-//    - .sf2 files already listed in the manifest are left exactly as
-//      they are (id, label, and position all preserved) — the id is
+//    - .sf2/.sf3 files already listed in the manifest are left exactly
+//      as they are (id, label, and position all preserved) — the id is
 //      a stable identifier (localStorage + ?sf= deep links), so it
 //      must never change or get reassigned to a different file.
-//    - .sf2 files found on disk but NOT in the manifest are appended
-//      at the end, with an id/label auto-derived from the filename.
+//    - .sf2/.sf3 files found on disk but NOT in the manifest are
+//      appended at the end, with an id/label auto-derived from the
+//      filename.
 //    - manifest entries whose file no longer exists on disk are left
 //      alone by default (just warned about) since deleting them out
 //      from under a saved id could silently break a returning
@@ -46,9 +47,9 @@ const MANIFEST_PATH  = path.join(SOUNDFONTS_DIR, 'manifest.json');
 const checkOnly = process.argv.includes('--check');
 const prune     = process.argv.includes('--prune');
 
-// Turns "minecraft_classic-v2.sf2" into "Minecraft Classic V2".
+// Turns "minecraft_classic-v2.sf2" (or .sf3) into "Minecraft Classic V2".
 function humanizeLabel(filename) {
-  const base = filename.replace(/\.sf2$/i, '');
+  const base = filename.replace(/\.sf[23]$/i, '');
   return base
     .replace(/[_\-]+/g, ' ')
     .trim()
@@ -59,7 +60,7 @@ function humanizeLabel(filename) {
 
 // Turns a filename into a slug-style id: lowercase, alnum + dashes only.
 function slugifyId(filename) {
-  const base = filename.replace(/\.sf2$/i, '');
+  const base = filename.replace(/\.sf[23]$/i, '');
   return base
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -80,7 +81,7 @@ function main() {
   }
 
   const filesOnDisk = fs.readdirSync(SOUNDFONTS_DIR)
-    .filter(f => f.toLowerCase().endsWith('.sf2'))
+    .filter(f => /\.sf[23]$/i.test(f))
     .sort((a, b) => a.localeCompare(b));
 
   let existing = [];
@@ -110,9 +111,10 @@ function main() {
     }
   }
 
-  // 2. Append any .sf2 on disk that isn't already referenced by some
-  //    entry (kept or dropped) — every existing `file` value counts,
-  //    not just ones with a file on disk, so we never double-add.
+  // 2. Append any .sf2/.sf3 on disk that isn't already referenced by
+  //    some entry (kept or dropped) — every existing `file` value
+  //    counts, not just ones with a file on disk, so we never
+  //    double-add.
   const referencedFiles = new Set(existing.map(e => e.file));
   const added = [];
   for (const file of filesOnDisk) {
@@ -139,7 +141,7 @@ function main() {
     console.log('  Review/edit the auto-generated labels in soundfonts/manifest.json if you want nicer names.');
   }
   if (!missing.length && !added.length) {
-    console.log(`✓ soundfonts/manifest.json already matches soundfonts/*.sf2 (${filesOnDisk.length} file(s)). Nothing to do.`);
+    console.log(`✓ soundfonts/manifest.json already matches soundfonts/*.sf2 + *.sf3 (${filesOnDisk.length} file(s)). Nothing to do.`);
   }
 
   const changed = added.length > 0 || (prune && missing.length > 0);
@@ -158,7 +160,7 @@ function main() {
   }
 
   if (filesOnDisk.length === 0) {
-    console.warn(`⚠ No .sf2 files found in ${SOUNDFONTS_DIR} — the manifest may be empty or stale.`);
+    console.warn(`⚠ No .sf2/.sf3 files found in ${SOUNDFONTS_DIR} — the manifest may be empty or stale.`);
   }
 }
 
