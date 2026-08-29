@@ -35,6 +35,15 @@
             },
             "versions": [
                 {
+                    "version": "0.0.2",
+                    "buildVersion": "1.4",
+                    "date": "2026-08-29T05:38:30Z",
+                    "localizedDescription": "**Full Changelog**: https://github.com/witch-craftmagazine/noteblock-pianola/compare/v0.0.1...v0.0.2",
+                    "downloadURL": "https://github.com/witch-craftmagazine/noteblock-pianola/releases/download/v0.0.2/NoteblockPianola-unsigned.ipa",
+                    "size": 73608623,
+                    "minOSVersion": "15.0"
+                },
+                {
                     "version": "0.0.1",
                     "buildVersion": "1.3",
                     "date": "2026-08-29T04:56:13Z",
@@ -53,11 +62,11 @@
                     "minOSVersion": "15.0"
                 }
             ],
-            "version": "0.0.1",
-            "versionDate": "2026-08-29T04:56:13Z",
-            "versionDescription": "**Full Changelog**: https://github.com/witch-craftmagazine/noteblock-pianola/commits/v0.0.1\r\n\r\n",
-            "downloadURL": "https://github.com/witch-craftmagazine/noteblock-pianola/releases/download/v0.0.1/NoteblockPianola-unsigned.ipa",
-            "size": 73595927
+            "version": "0.0.2",
+            "versionDate": "2026-08-29T05:38:30Z",
+            "versionDescription": "**Full Changelog**: https://github.com/witch-craftmagazine/noteblock-pianola/compare/v0.0.1...v0.0.2",
+            "downloadURL": "https://github.com/witch-craftmagazine/noteblock-pianola/releases/download/v0.0.2/NoteblockPianola-unsigned.ipa",
+            "size": 73608623
         }
     ]
 }
