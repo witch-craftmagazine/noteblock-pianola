@@ -334,6 +334,13 @@ let lastMouseX  = 0;
 let lastMouseY  = 0;
 let windAccum  = 0;
 let lastNotch  = 0; // last CRANK_NOTCHES_PER_REV "tick" boundary crossed — see onCrankNotch below
+// Signed twin of windAccum/lastNotch, used only for the crank's note-
+// stepping "funplay" (see window.musicPlayer.stepNote). windAccum above
+// stays unsigned and untouched — it still drives the crank's visual spin
+// and the WINDS_TO_PLAY autoplay-start threshold exactly as before; this
+// is purely additive.
+let noteStepAccum = 0;
+let lastNoteStepNotch = 0;
 let hasPlayed  = false;
 let lidOpen  = false;
 let crankMeshes  = [];
@@ -416,6 +423,28 @@ canvas.addEventListener('pointermove', e => {
         if (window.onCrankNotch) window.onCrankNotch();
       }
 
+      // Crank note-stepping (funplay): same notch spacing as the haptic
+      // above, but signed — dragging one way steps forward through the
+      // song's notes, dragging the other way steps backward. Whichever
+      // axis dominates this tick decides direction, matching the same
+      // "down or left = forward" gesture windAccum already uses above.
+      const dirSign = vertDelta >= Math.abs(dx) ? Math.sign(dy) : (dx < 0 ? 1 : -1);
+      noteStepAccum += dirSign * forwardDelta;
+      const currentNoteStepNotch = Math.floor(noteStepAccum / notchSize);
+      if (currentNoteStepNotch !== lastNoteStepNotch) {
+        // A fast flick can cross more than one notch in a single
+        // pointermove tick — step once per notch crossed, in order,
+        // so the scrub still feels proportional to drag speed rather
+        // than jumping straight to the final note.
+        const stepDir = currentNoteStepNotch > lastNoteStepNotch ? 1 : -1;
+        while (lastNoteStepNotch !== currentNoteStepNotch) {
+          lastNoteStepNotch += stepDir;
+          if (window.musicPlayer && window.musicPlayer.stepNote) {
+            window.musicPlayer.stepNote(stepDir);
+          }
+        }
+      }
+
       if (!action.isRunning() && !_initializedActions.has(action)) {
         action.reset();
         action.enabled = true;
@@ -463,6 +492,8 @@ canvas.addEventListener('pointerdown', e => {
     }
     windAccum = 0;
     lastNotch = 0;
+    noteStepAccum = 0;
+    lastNoteStepNotch = 0;
     hasPlayed = false;
   } else if (overLid) {
     toggleLid();

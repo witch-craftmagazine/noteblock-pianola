@@ -40,6 +40,96 @@ let browseOpen    = false;
 let volumeAdjustments = {}; // { "<slug>": gainMultiplier } — from tools/analyze-loudness.js
 let currentTrackGain  = 1.0; // resolved multiplier for whatever track is currently loaded
 
+// ── Crank note-stepping (funplay) ─────────────────────────────────
+// Flat, time-sorted list of "chord steps" for the currently loaded song:
+// [{ time: seconds, notes: [{ channel, pitch, velocity }] }, ...]
+// Built asynchronously off Sequencer.getMIDI() whenever a new song loads.
+// Used by scene.js's crank drag to step playback position note-by-note,
+// independent of normal autoplay (see stepNote() below).
+let noteOnsets       = [];
+let noteOnsetsToken  = 0; // bumped on every load so a stale async build can't clobber a newer one
+const MAX_CHORD_NOTES_PER_STEP = 6; // dense chords still trigger one step, capped so a blip isn't a wall of sound
+
+async function buildNoteOnsets() {
+  const myToken = ++noteOnsetsToken;
+  noteOnsets = [];
+  if (!seq) return;
+  let midi;
+  try {
+    midi = await seq.getMIDI();
+  } catch (e) {
+    console.warn('[MusicPlayer] Could not read MIDI for crank note-stepping:', e);
+    return;
+  }
+  if (myToken !== noteOnsetsToken || !midi || !midi.tracks) return; // superseded by a newer load
+
+  // Collect every real note-on (status 0x90-0x9F, velocity > 0 — a
+  // note-on with velocity 0 is conventionally a note-off) across all
+  // tracks, keyed by tick so simultaneous notes collapse into one step.
+  const byTick = new Map();
+  for (const track of midi.tracks) {
+    for (const ev of track.events) {
+      if ((ev.statusByte & 0xF0) !== 0x90) continue;
+      const pitch    = ev.data[0];
+      const velocity = ev.data[1];
+      if (!velocity) continue;
+      const channel = ev.statusByte & 0x0F;
+      if (!byTick.has(ev.ticks)) byTick.set(ev.ticks, []);
+      const notes = byTick.get(ev.ticks);
+      if (notes.length < MAX_CHORD_NOTES_PER_STEP) notes.push({ channel, pitch, velocity });
+    }
+  }
+
+  const ticks = [...byTick.keys()].sort((a, b) => a - b);
+  noteOnsets = ticks.map(t => ({ time: midi.midiTicksToSeconds(t), notes: byTick.get(t) }));
+}
+
+// Finds the nearest step strictly after (direction > 0) or before
+// (direction < 0) the current playback position, clamped to the song's
+// bounds (no wraparound). Returns null if there's nowhere to go.
+function findAdjacentNoteStep(direction) {
+  if (!noteOnsets.length || !seq) return null;
+  const cur = seq.currentTime || 0;
+  if (direction > 0) {
+    for (let i = 0; i < noteOnsets.length; i++) {
+      if (noteOnsets[i].time > cur + 1e-4) return noteOnsets[i];
+    }
+    return null; // already at/after the last note
+  } else {
+    for (let i = noteOnsets.length - 1; i >= 0; i--) {
+      if (noteOnsets[i].time < cur - 1e-4) return noteOnsets[i];
+    }
+    return null; // already at/before the first note
+  }
+}
+
+// P: crank "funplay" — steps playback to the next/previous note-onset
+// and plinks the notes there, independent of play/pause state. Does NOT
+// start/stop playback or affect autoplay; see onCrankNotch in scene.js.
+const CRANK_PLINK_MS = 150;
+function stepNote(direction) {
+  if (!seq || !synth) return;
+  const step = findAdjacentNoteStep(direction);
+  if (!step) return;
+
+  const clamped = Math.max(0, Math.min(step.time, seq.duration || step.time));
+  seq.currentTime = clamped;
+  if (!isSeeking && ui.seek && seq.duration > 0) {
+    const progress = Math.min(clamped / seq.duration, 1);
+    ui.seek.value = Math.round(progress * 1000);
+    ui.timeCur.textContent = formatTime(clamped);
+  }
+
+  // Audible "plink" so scrubbing the crank feels tactile even while
+  // paused, or ahead of the engine's own scheduled playback.
+  for (const { channel, pitch, velocity } of step.notes) {
+    try {
+      synth.noteOn(channel, pitch, velocity);
+      setTimeout(() => { try { synth.noteOff(channel, pitch); } catch (e) { /* non-fatal */ } }, CRANK_PLINK_MS);
+    } catch (e) { /* non-fatal */ }
+  }
+}
+
 // ── Soundfont switching ───────────────────────────────────────────
 let soundfonts          = [];    // [{ id, label, file }] — from soundfonts/manifest.json
 let currentSoundfontId  = null;
@@ -985,6 +1075,7 @@ async function loadTrack(index, autoPlay = true) {
     const song = await getMidiBuffer(tracks[index]);
     seq.loadNewSongList([song]);
     songLoaded = true;
+    buildNoteOnsets(); // async, non-blocking — crank stepping just no-ops until this resolves
 
     window._currentSong = (tracks[index] || '').split('/').pop();
     console.log('[MusicPlayer] 📀 track loaded — _currentSong set to:', window._currentSong);
@@ -1085,6 +1176,7 @@ async function handleUpload() {
     const song = { binary: arrayBuf, midiName: file.name };
     seq.loadNewSongList([song]);
     songLoaded = true;
+    buildNoteOnsets(); // async, non-blocking — crank stepping just no-ops until this resolves
 
     // Stamp _currentSong with the filename (without extension) so easter
     // egg triggers still work — e.g. uploading i_feel_pretty_1957_-_bernstein.mid
@@ -1194,6 +1286,11 @@ window.musicPlayer = {
   listSoundfonts,
   getSoundfont: () => currentSoundfontId,
   setSoundfont,
+
+  // Crank "funplay" note-stepping — used by scene.js's crank drag handler.
+  // direction: +1 (forward) or -1 (backward). No-ops if the onset
+  // timeline for the current song hasn't finished building yet.
+  stepNote,
 };
 
 // ─────────────────────────────────────────────────────────────────
