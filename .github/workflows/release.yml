@@ -28,12 +28,23 @@ jobs:
   build-ipa-release:
     name: Build and Release Unsigned IPA
     if: github.event_name == 'workflow_dispatch'
-    runs-on: macos-14
+    runs-on: macos-26
     outputs:
       tag: ${{ inputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Select Xcode 26.3
+        # Pins the same Xcode that generates the project (xcodegen reads
+        # the active toolchain's project-format version) and the one that
+        # builds it. Without this, xcodegen can emit a pbxproj in a format
+        # newer than whatever Xcode happens to be active by default on the
+        # runner, and xcodebuild then fails with "future Xcode project
+        # file format" -- macos-14 hit this because its default Xcode
+        # lagged xcodegen's output format. Mirrors the Nectar project's
+        # release.yml, which hit the same issue.
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
 
       - uses: oven-sh/setup-bun@v2
 
@@ -155,7 +166,7 @@ jobs:
     # build-ipa-release's own `if` only allows workflow_dispatch, while a
     # workflow_dispatch run still won't proceed past a failed build.
     if: always() && (github.event_name == 'release' || needs.build-ipa-release.result == 'success')
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
       - name: Resolve release
         id: release
@@ -191,6 +202,9 @@ jobs:
           # the release's own tag, not main. This job always reads/writes
           # appstore/ on main.
           ref: main
+
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
 
       - uses: oven-sh/setup-bun@v2
 
