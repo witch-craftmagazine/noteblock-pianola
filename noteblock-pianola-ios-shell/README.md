@@ -22,28 +22,15 @@ Requires a Mac with Xcode installed (`xcode-select -p` should print an
 Xcode.app path, not just the Command Line Tools) and
 [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
+**`web/` now syncs itself automatically on every build** — see
+"Keeping `web/` in sync" below. The steps here are for the one-time
+setup (generating the `.xcodeproj` in the first place) and for
+headless/CI-style builds.
+
 ```bash
 # Run from the repo root, not from inside this folder.
 
-# 1. Build the web app
-bun install
-bun run build
-
-# 2. Stage it into the shell (mirrors .github/workflows/ios-build.yml —
-#    see that file for the full exclude list and why each entry is there)
-mkdir -p noteblock-pianola-ios-shell/web
-rsync -a --exclude node_modules --exclude .git --exclude 'song/' \
-  --exclude 'noteblock-pianola-ios-shell/' \
-  --exclude 'src/' --exclude 'tools/' --exclude 'scripts/' \
-  --exclude '.github/' --exclude 'bun.lock' --exclude 'package.json' \
-  --exclude 'make-claude-upload.sh' --exclude 'claude-upload.zip' \
-  --exclude 'ios-app-plan.md' --exclude 'noteblock-docs.md' \
-  --exclude 'EXCLUDED_FROM_THIS_ZIP.md' --exclude '.gitignore' \
-  --exclude '.DS_Store' --exclude 'README.md' --exclude 'NOTICE' \
-  --exclude 'LICENSE*' \
-  ./ noteblock-pianola-ios-shell/web/
-
-# 3. Generate and build
+# 1. Generate the Xcode project
 cd noteblock-pianola-ios-shell
 xcodegen generate
 open NoteblockPianola.xcodeproj   # or build headlessly, see below
@@ -63,6 +50,57 @@ xcodebuild -project NoteblockPianola.xcodeproj -scheme NoteblockPianola \
   -destination 'generic/platform=iOS' -allowProvisioningUpdates \
   -derivedDataPath build/ios -archivePath build/NoteblockPianola.xcarchive archive
 xcrun devicectl device install app build/ios/Build/Products/Debug-iphoneos/NoteblockPianola.app
+```
+
+## Keeping `web/` in sync
+
+`web/` (the staged copy of the site that ships inside the app bundle)
+used to only get refreshed by a human remembering to run the staging
+steps by hand — easy to forget, and the actual installed-on-a-device
+app is exactly what drifted from the live site as a result. It's now
+a `preBuildScripts` phase in `project.yml` (`scripts/sync-web.sh`),
+so **every Xcode build — `Cmd+R`, `xcodebuild`, all of it — reruns
+`bun run build` and restages `web/` from scratch first.** There's no
+longer a way to build this target against a stale `web/`.
+
+Two things worth knowing:
+
+- **This needs `bun` and `rsync` on `$PATH` inside Xcode's build-phase
+  shell**, which is more minimal than an interactive Terminal's — if
+  Xcode reports "bun: command not found" in the build log even though
+  `bun` works fine in Terminal, that's a `$PATH` issue in Xcode's
+  environment, not a missing install. `xcodebuild` from Terminal
+  inherits your shell's `$PATH` and won't have this problem; the
+  Xcode GUI might, depending on how `bun` was installed. Symlinking
+  `bun`/`rsync` into `/usr/local/bin` (or wherever Xcode's build
+  phases already look) is the usual fix if this comes up.
+- **It costs a few seconds on every build** (a `bun run build` plus an
+  rsync of the whole staged tree) — the trade-off is deliberate:
+  correctness (the app you're about to run always matches the site)
+  over build speed. `rebuild-ios-shell.sh` at the repo root still
+  exists for a manual, verbose, step-by-step run (staging + `xcodegen
+  generate` + an optional simulator build in one command) if you want
+  to restage without opening Xcode at all.
+
+If you ever do need to stage `web/` by hand (e.g. inspecting its
+contents without triggering a full Xcode build), the old manual
+recipe still works — it's what `scripts/sync-web.sh` itself runs:
+
+```bash
+# Run from the repo root, not from inside this folder.
+bun install
+bun run build
+mkdir -p noteblock-pianola-ios-shell/web
+rsync -a --exclude node_modules --exclude .git --exclude 'song/' \
+  --exclude 'noteblock-pianola-ios-shell/' \
+  --exclude 'src/' --exclude 'tools/' --exclude 'scripts/' \
+  --exclude '.github/' --exclude 'bun.lock' --exclude 'package.json' \
+  --exclude 'make-claude-upload.sh' --exclude 'claude-upload.zip' \
+  --exclude 'ios-app-plan.md' --exclude 'noteblock-docs.md' \
+  --exclude 'EXCLUDED_FROM_THIS_ZIP.md' --exclude '.gitignore' \
+  --exclude '.DS_Store' --exclude 'README.md' --exclude 'NOTICE' \
+  --exclude 'LICENSE*' \
+  ./ noteblock-pianola-ios-shell/web/
 ```
 
 ## Phase 0 — the two things to verify on a real device before anything else
@@ -96,6 +134,34 @@ If any of these fail, see `ios-app-plan.md` Phase 0 for the
 `file://`-alternative fallback (a custom URL scheme instead) — don't
 build that fallback until something is confirmed broken, not just
 theoretically risky.
+
+### Known-fixed issues (verify on-device, don't re-diagnose from scratch)
+
+- **Stuck on the loading spinner forever.** Root cause was `web/`
+  drift, not an app bug: `src/musicbox/scene.js`'s loading-spinner
+  dismissal (`loading.classList.add('hidden')`) only runs once the
+  bundle has loaded and its GLB-loading IIFE gets a chance to
+  execute — if `dist/main.js` is missing or the whole `web/` snapshot
+  predates the current site, that code never runs and the spinner
+  never clears. `scripts/sync-web.sh` (now a `preBuildScripts` phase,
+  see "Keeping `web/` in sync" above) makes this structurally
+  impossible for any Xcode build going forward, and hard-fails the
+  build instead of shipping a broken bundle. If this recurs after
+  that fix, the cause is something new — check Safari's remote Web
+  Inspector for a JS error before assuming it's the same bug.
+- **A corner button sits under the notch and doesn't respond to
+  taps.** `#github-flap` (and, less severely, `#sf-toggle`/
+  `#bg-toggle`) were positioned with fixed pixel offsets despite the
+  page requesting edge-to-edge content (`viewport-fit=cover`) — with
+  no browser chrome to push content clear of the notch/Dynamic
+  Island the way Safari does, the flap sat under the sensor housing
+  and in iOS's reserved Control Center swipe corner. Fixed in
+  `styles.css` with `env(safe-area-inset-*)`; `MusicBoxViewController`
+  also now sets `webView.scrollView.contentInsetAdjustmentBehavior =
+  .never` so UIKit doesn't layer its own automatic insets on top of
+  the page's CSS-driven ones. **Needs on-device confirmation** on an
+  actual notched/Dynamic-Island phone — this can't be verified in the
+  simulator's default device or from this sandbox.
 
 ## What's actually new here vs. what the web app already provides
 
