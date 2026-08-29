@@ -1,0 +1,54 @@
+{
+    "name": "Noteblock Pianola",
+    "subtitle": "Source for Noteblock Pianola, a Minecraft-themed music box.",
+    "description": "An interactive 3D music box that plays MIDI through a Minecraft-themed soundfont, wrapped as a native iOS shell around the web app. Updated automatically from GitHub Releases.",
+    "iconURL": "https://witch-craftmagazine.github.io/noteblock-pianola/appstore/icon.png",
+    "website": "https://github.com/witch-craftmagazine/noteblock-pianola",
+    "tintColor": "#6BAA3C",
+    "nsfw": false,
+    "news": [
+        {
+            "title": "About Noteblock Pianola",
+            "identifier": "noteblock-pianola-source-intro",
+            "caption": "Minecraft-themed music box, sideloaded. Crank it, browse the song list, and let it play in the background.",
+            "date": "2026-08-29",
+            "tintColor": "#6BAA3C",
+            "notify": false,
+            "url": "https://github.com/witch-craftmagazine/noteblock-pianola",
+            "appID": "com.witchcraftmagazine.noteblockpianola"
+        }
+    ],
+    "apps": [
+        {
+            "name": "Noteblock Pianola",
+            "bundleIdentifier": "com.witchcraftmagazine.noteblockpianola",
+            "developerName": "witch-craftmagazine",
+            "subtitle": "3D Minecraft-themed music box",
+            "localizedDescription": "Noteblock Pianola is a 3D music box that plays MIDI files through a Minecraft noteblock soundfont. Turn the crank, browse the song list, and let it keep playing in the background while you do something else. Includes a handful of hidden easter eggs.",
+            "iconURL": "https://witch-craftmagazine.github.io/noteblock-pianola/appstore/icon.png",
+            "tintColor": "#6BAA3C",
+            "category": "entertainment",
+            "screenshots": [],
+            "appPermissions": {
+                "entitlements": [],
+                "privacy": {}
+            },
+            "versions": [
+                {
+                    "version": "0.0.1",
+                    "buildVersion": "1.2",
+                    "date": "2026-08-29T04:56:13Z",
+                    "localizedDescription": "**Full Changelog**: https://github.com/witch-craftmagazine/noteblock-pianola/commits/v0.0.1",
+                    "downloadURL": "https://github.com/witch-craftmagazine/noteblock-pianola/releases/download/v0.0.1/NoteblockPianola-unsigned.ipa",
+                    "size": 73595927,
+                    "minOSVersion": "15.0"
+                }
+            ],
+            "version": "0.0.1",
+            "versionDate": "2026-08-29T04:56:13Z",
+            "versionDescription": "**Full Changelog**: https://github.com/witch-craftmagazine/noteblock-pianola/commits/v0.0.1",
+            "downloadURL": "https://github.com/witch-craftmagazine/noteblock-pianola/releases/download/v0.0.1/NoteblockPianola-unsigned.ipa",
+            "size": 73595927
+        }
+    ]
+}
