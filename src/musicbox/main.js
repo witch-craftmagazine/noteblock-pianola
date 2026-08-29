@@ -11,7 +11,7 @@
 //  (index.html has no #bg-toggle button; see that file's header
 //  comment) but stays imported so re-adding the button is a
 //  zero-JS-change operation. `bun run build` bundles this file (and
-//  its three.js import) into dist/musicbox.js.
+//  its three.js import) into dist/main.js.
 // ─────────────────────────────────────────────────────────────────
 import './scene.js';
 import './particles.js';

@@ -54,7 +54,9 @@ bun install
    ```
    Run `--full` occasionally (not on every single add) since it's slower.
    `analyze-loudness.js` requires `soundfonts/minecraft3.sf2` to be present
-   locally — it's not committed to the repo (too large).
+   — it *is* committed to the repo (see `update-midilist.yml`, which runs
+   this step in CI with no separate download/restore step), so a normal
+   clone has it already.
 
 4. **Commit and push.**
    ```bash

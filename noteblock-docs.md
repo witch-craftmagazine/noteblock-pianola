@@ -10,7 +10,7 @@
 
 An interactive 3D music box that plays MIDI files through a Minecraft-themed soundfont. The user winds a crank on a 3D model to trigger playback. Musical note glyphs float up as particles while the music plays. A full track list of ~278 MIDI files (ragtime, jazz, classical, broadway, bossa nova, etc.) can be browsed via a floating player UI at the bottom of the screen.
 
-Easter egg overlays — full-screen animated scenes — are triggered by specific songs. Five currently exist, each in its own module under `easter-eggs/`.
+Easter egg overlays — full-screen animated scenes — are triggered by specific songs. Six currently exist, each in its own module under `easter-eggs/`.
 
 There is also a second page, `no/index.html`, a horror-styled easter egg experience with its own assets, ambient sounds, and background panoramas.
 
@@ -20,7 +20,7 @@ There is also a second page, `no/index.html`, a horror-styled easter egg experie
 
 | File | Role |
 |------|------|
-| `index.html` | App shell + inline scene/particle JS |
+| `index.html` | App shell; loads the `src/musicbox/` bundle (`dist/main.js`), `script.js`, and `easter-eggs/egg-loader.js` |
 | `script.js` | ES module: MIDI player UI, soundfont loading, playback controls |
 | `no/index.html` | Horror-styled secondary page (formerly `no.html`) |
 | `midilist.json` | Ordered list of all MIDI file paths (~278 tracks), loaded at runtime |
@@ -38,6 +38,7 @@ There is also a second page, `no/index.html`, a horror-styled easter egg experie
 | `easter-eggs/green/index.js` | "Greensleeves" egg |
 | `easter-eggs/office/index.js` | "The Office Theme" egg |
 | `easter-eggs/lab/index.js` | "Hip to Be Square" egg |
+| `easter-eggs/duck/index.js` | "Peter and the Wolf" egg |
 | `tools/rebuild-midilist.js` | Rescans `./midi/*.mid` and rewrites `midilist.json` |
 | `tools/generate-share-pages.js` | Produces one `song/<slug>/index.html` per track (Open Graph / social preview) |
 | `tools/analyze-loudness.js` | Renders MIDIs headlessly via SpessaSynth, derives ReplayGain-style multipliers |
@@ -69,21 +70,20 @@ There is also a second page, `no/index.html`, a horror-styled easter egg experie
 
 ## Architecture
 
-The app has no framework, no bundler, and no server. Everything runs in the browser from static files served by GitHub Pages.
+The app has no framework and no server, but does have a build step: `bun run build` bundles `src/musicbox/` (and its `three` import) into `dist/main.js`. Everything else runs straight from static files served by GitHub Pages.
 
 ### Dependency loading order (index.html)
 
 1. **Importmap** — maps bare specifier `spessasynth_core` to `./lib/spessasynth_core.js`. Must appear before any `<script type="module">`.
-2. **Three.js r128** — loaded from cdnjs CDN.
-3. **GLTFLoader** — loaded from jsDelivr CDN (Three r128 build).
-4. **Inline script block 1** — Scene setup, GLB loading, animation system, crank/lid interaction, music callbacks, background toggle.
-5. **Inline script block 2** — Note particle system (canvas overlay).
-6. **`<script type="module" src="./script.js">`** — MIDI player.
-7. **`<script type="module" src="./easter-eggs/egg-loader.js">`** — Loads `registry.json` and dynamically imports each egg module.
+2. **`<script type="module" src="./dist/main.js">`** — the bundled `src/musicbox/` entry point. Load order inside the bundle (see `src/musicbox/main.js`): `scene.js` (Three.js scene, GLB loading, crank/lid animation, music callbacks — also sets `window.THREE`, see below) → `particles.js` (wraps the music callbacks) → `bg-toggle.js` (dormant, see its header comment) → `soundfont-toggle.js`.
+3. **`<script type="module" src="./script.js">`** — MIDI player.
+4. **`<script type="module" src="./easter-eggs/egg-loader.js">`** — Loads `registry.json` and dynamically imports each egg module.
+
+There is no longer a CDN dependency for Three.js — it's an npm dependency (`three`, pinned in `package.json`) bundled by `bun run build`, same as the rest of `src/musicbox/`.
 
 ### Global communication pattern
 
-Because `script.js` and `egg-loader.js` are ES modules and the inline scripts are classic scripts, they communicate through `window` globals:
+`script.js`, the `src/musicbox/` bundle, and the easter-egg modules are all separately-loaded ES modules, so they communicate through `window` globals:
 
 | Global | Set by | Read by |
 |--------|--------|---------|
@@ -93,11 +93,14 @@ Because `script.js` and `egg-loader.js` are ES modules and the inline scripts ar
 | `window.onMusicEnd()` | same chain | same |
 | `window._currentSong` | `script.js` | egg modules (check filename against trigger) |
 | `window._sf2Buffer` | `script.js` init | `ensureAudioContext()` |
-| `window.musicBoxAnimations` | inline script 1 | music callbacks |
-| `window._registerCrankMeshes(root)` | inline script 1 | called during GLB load |
-| `window._registerLidMeshes(root)` | inline script 1 | called during GLB load |
+| `window.musicBoxAnimations` | `src/musicbox/scene.js` | music callbacks |
+| `window._registerCrankMeshes(root)` | `src/musicbox/scene.js` | called during GLB load |
+| `window._registerLidMeshes(root)` | `src/musicbox/scene.js` | called during GLB load |
+| `window.THREE` | `src/musicbox/scene.js` | all six `easter-eggs/*/index.js` modules |
 
-Each subscriber hooks into `onMusicPlay/Pause/End` by saving the previous value and wrapping it — forming a chain. The ordering of the `<script>` blocks determines the chain order.
+Each subscriber hooks into `onMusicPlay/Pause/End` by saving the previous value and wrapping it — forming a chain. The ordering of the `<script>` tags (and, within the bundle, the import order in `src/musicbox/main.js`) determines the chain order.
+
+`window.THREE` deserves a callout: the easter-egg modules aren't part of the bundle and reference `THREE` as a bare global — they were written against three.js's old CDN `<script>` era. `scene.js` re-exposes `THREE` (plus `GLTFLoader`) on `window` specifically so those modules keep working now that three.js is loaded as a real ES import. If that line in `scene.js` is ever removed, all six eggs break silently (they fail independently and just log to the console — see `easter-eggs/egg-loader.js`).
 
 ---
 
@@ -107,7 +110,7 @@ Each subscriber hooks into `onMusicPlay/Pause/End` by saving the previous value 
 
 Renders `musicbox.glb` into a full-viewport canvas (`#three-canvas`). Camera is fixed at a 30° horizontal offset, aimed at y=0.5. Four-light rig: ambient (warm), key (directional + shadow), fill, rim. Shadow map 1024×1024, PCFSoft.
 
-`CONFIG` at the top of inline block 1 exposes tunable values: camera distance/height, light intensities, drag sensitivity, and wind threshold.
+`CONFIG` at the top of `src/musicbox/scene.js` exposes tunable values: camera distance/height, light intensities, drag sensitivity, and wind threshold.
 
 ### 2. Animation System
 
@@ -342,39 +345,17 @@ CI will normalize filenames and regenerate share pages again on push, which is h
 
 ## Improvement Opportunities
 
-### Priority 1 — Explicit Touch/Pointer Events for Crank
+### ~~Priority 1 — Explicit Touch/Pointer Events for Crank~~ — Done
 
-**Problem:** Crank interaction is wired to `mousedown/mousemove/mouseup` only. Touch works incidentally in browsers that synthesize mouse events, but is unreliable — scroll hijacking, no pointer capture, no multi-touch guard.
+`src/musicbox/scene.js` already uses `pointerdown`/`pointermove`/`pointerup` with `canvas.setPointerCapture(e.pointerId)`, not the old `mousedown/mousemove/mouseup` handlers this section used to describe. One code path now covers mouse, touch, and stylus, as originally proposed here.
 
-**Fix:** Replace the three mouse handlers in inline block 1 with `pointerdown/pointermove/pointerup` (Pointer Events API). One code path covers mouse, touch, and stylus.
+### ~~Priority 2 — Module Refactor of index.html~~ — Done
 
-Key details:
-- `canvas.setPointerCapture(e.pointerId)` on pointerdown keeps pointermove firing even if the finger drifts off the canvas.
-- `touch-action: none` is already set on `body`; also set it on `#three-canvas` explicitly.
-- Skip cursor style changes when `e.pointerType === 'touch'`.
-- `e.clientX/clientY` is identical to mouse — raycaster logic needs no changes.
-
-### Priority 2 — Module Refactor of index.html
-
-**Problem:** `index.html` contains the entire scene, animation, crank, and particle systems inline (~1000+ lines). Hard to navigate and diff.
-
-**Approach:** Move inline blocks into `src/` ES modules — no bundler needed, GitHub Pages serves `.js` with correct MIME type.
-
-```
-src/
-  scene.js          ← Three.js scene, lighting, model load, resize
-  animations.js     ← musicBoxAnimations object, mixer, clip logic
-  interaction.js    ← pointer events (crank drag, lid click, hit test)
-  particles.js      ← note particle canvas system
-  callbacks.js      ← onMusicPlay/Pause/End base implementations
-  bg-toggle.js      ← background toggle button
-```
-
-The global communication contract (`window.musicPlayer`, `window.onMusicPlay`, etc.) stays unchanged.
+`index.html`'s inline scene/animation/crank/particle code has been moved into `src/musicbox/` ES modules, bundled via `bun run build` into `dist/main.js`. It ended up as four files rather than the six originally sketched here — `scene.js` (scene, lighting, model load, resize, animation/mixer logic, and pointer interaction all together), `particles.js`, `bg-toggle.js`, `soundfont-toggle.js`, wired together by `main.js` — but the global communication contract (`window.musicPlayer`, `window.onMusicPlay`, etc.) is unchanged, as planned. See "Architecture" above.
 
 ### Lower Priority
 
-- **Vendor Three.js** — copy `three.min.js` and `GLTFLoader.js` into `lib/` to eliminate the CDN dependency.
+- ~~**Vendor Three.js**~~ — Done, in effect: three.js is no longer loaded from a CDN. It's an npm dependency bundled by `bun run build` rather than a copied `lib/three.min.js`, but the CDN dependency is gone either way.
 - **Loading progress bar** — stream the soundfont fetch with `response.body` + `ReadableStream` and show byte progress.
 - **Persist preferences** — store background-toggle state and volume in `localStorage`, restore on load.
 - **Keyboard shortcuts** — spacebar for play/pause, arrows for prev/next.

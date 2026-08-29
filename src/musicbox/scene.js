@@ -9,6 +9,18 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// The easter-egg modules (easter-eggs/*/index.js) are loaded independently
+// by egg-loader.js and were written against the old setup where three.js
+// was a plain `<script src="three.min.js">` global, with a second
+// GLTFLoader script that hung `GLTFLoader` off that same global `THREE`
+// object. They still reference the bare `THREE` global directly (see e.g.
+// easter-eggs/minecraft/index.js, easter-eggs/duck/index.js) and none of
+// them import three.js themselves. Now that three.js is loaded via a real
+// ES import instead, keep that global alive here so the eggs keep working.
+// (Can't just do `THREE.GLTFLoader = GLTFLoader` — a module namespace
+// object is frozen — so this copies the exports into a plain object first.)
+window.THREE = Object.assign({}, THREE, { GLTFLoader });
+
 // ─────────────────────────────────────────────
 //  CONFIG — tweak these values freely
 // ─────────────────────────────────────────────
