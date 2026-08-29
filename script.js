@@ -11,6 +11,10 @@ from "./lib/spessasynth_lib.js";
 const SOUNDFONTS_DIR      = './soundfonts/';
 const SOUNDFONTS_MANIFEST = './soundfonts/manifest.json';
 const SF_STORAGE_KEY      = 'noteblock-pianola:soundfont';
+// Read by the iOS shell's "Resume last song" Home Screen Quick Action
+// (AppDelegate.swift) via a plain `localStorage.getItem(...)` eval — kept
+// as a bare slug string (not JSON) so that read stays a one-liner.
+const LAST_SONG_STORAGE_KEY = 'noteblock-pianola:lastSong';
 // Fallback used only if soundfonts/manifest.json can't be fetched at all
 // (e.g. it's missing) — keeps the player working with the one bank that
 // used to be hardcoded here.
@@ -946,6 +950,11 @@ async function loadTrack(index, autoPlay = true) {
   if (browseOpen) renderResults();
   updateTrackName(index);
 
+  // Persist for "Resume last song" (iOS shell Home Screen Quick Action)
+  // — same non-fatal try/catch as the soundfont preference above, since
+  // localStorage can throw (private browsing, storage quota).
+  try { localStorage.setItem(LAST_SONG_STORAGE_KEY, slugFor(index)); } catch (e) { /* non-fatal */ }
+
   if (!context) {
     if (autoPlay) await togglePlay();
     return;
@@ -1130,6 +1139,35 @@ window.musicPlayer = {
   prev:      prevTrack,
   shuffle:   shuffleTrack,
   isPlaying: () => playing,
+
+  // Elapsed/total seconds of the current track. Used by the iOS shell's
+  // NowPlayingBridge (see noteblock-pianola-ios-shell/Sources) to set
+  // MPNowPlayingInfoCenter's scrubber on play/pause/track-change — read
+  // once per event rather than polled continuously, since the native
+  // side lets iOS interpolate elapsed time between updates instead of
+  // needing a running timer (which requestAnimationFrame-based ticks
+  // like startSeekLoop's wouldn't get while backgrounded anyway).
+  getCurrentTime: () => (seq ? seq.currentTime : 0),
+  getDuration:    () => (seq ? seq.duration    : 0),
+
+  // Absolute seek, in seconds. Mirrors what ui.seek's pointerup handler
+  // already does (`seq.currentTime = ...`) rather than reimplementing
+  // seeking — the only difference is this takes seconds directly instead
+  // of the 0-1000 slider scale, since native callers (lock-screen scrubber)
+  // don't know about that UI-internal scale. Clamped to [0, duration] so a
+  // stale/out-of-range value from the native side can't throw.
+  seek(seconds) {
+    if (!seq || !(seq.duration > 0)) return;
+    const clamped = Math.max(0, Math.min(Number(seconds) || 0, seq.duration));
+    seq.currentTime = clamped;
+    // Keep the on-screen seek bar in sync immediately, same as the
+    // seek-loop's own update, instead of waiting for the next tick.
+    if (!isSeeking) {
+      const progress = Math.min(clamped / seq.duration, 1);
+      ui.seek.value = Math.round(progress * 1000);
+      ui.timeCur.textContent = formatTime(clamped);
+    }
+  },
 
   // Soundfont switching — used by src/musicbox/soundfont-toggle.js
   listSoundfonts,

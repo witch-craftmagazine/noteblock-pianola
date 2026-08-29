@@ -454,6 +454,12 @@ window.addEventListener('pointerup', e => {
   if (windsCompleted >= CONFIG.WINDS_TO_PLAY && !hasPlayed) {
     hasPlayed = true;
     if (window.musicPlayer) window.musicPlayer.play();
+    // Discrete, user-meaningful crank signal — fires once per completed
+    // wind-up (not per pointermove tick), mirroring the window.onMusic*
+    // no-op-if-undefined extension-point pattern from script.js so native
+    // shells (see NowPlayingBridge.swift) can hook it without this file
+    // needing to know anything native exists.
+    if (window.onCrankTurn) window.onCrankTurn();
   }
 });
 
