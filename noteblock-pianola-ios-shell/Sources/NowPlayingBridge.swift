@@ -46,6 +46,12 @@ final class NowPlayingBridge: NSObject {
     private let playPauseFeedback = UIImpactFeedbackGenerator(style: .light)
     private let trackChangeFeedback = UIImpactFeedbackGenerator(style: .soft)
     private let crankFeedback = UISelectionFeedbackGenerator()
+    // `.rigid`, not `.light`/`.soft` — these fire rapidly while the user
+    // is actively dragging the crank (one per notch, see onCrankNotch),
+    // so they need the crispest, most immediate-feeling impact style to
+    // read as a mechanical ratchet click rather than a mushy buzz.
+    private let crankNotchFeedback = UIImpactFeedbackGenerator(style: .rigid)
+    private let uiTapFeedback = UIImpactFeedbackGenerator(style: .light)
 
     /// Last title we saw in a `play` event, used to tell "resumed the same
     /// track" (play/pause-toggle haptic) apart from "a different track
@@ -86,6 +92,17 @@ final class NowPlayingBridge: NSObject {
           // wind-up (not per drag tick) — reuses the same message
           // handler/payload shape rather than a second bridge class.
           window.onCrankTurn = function () { post('crank'); };
+          // Fires repeatedly while dragging the crank, once per ratchet
+          // "notch" (see CONFIG.CRANK_NOTCHES_PER_REV in scene.js) —
+          // distinct from onCrankTurn above, which fires once when
+          // enough winding has accumulated to actually start playback.
+          window.onCrankNotch = function () { post('cranknotch'); };
+          // Generic "a UI button was tapped" signal, called explicitly
+          // by script.js at button handlers that don't already imply a
+          // playback/track-state change (browse, share, sort, upload,
+          // and the 3D lid) — see notifyUiTap() in script.js for why
+          // play/prev/next/shuffle deliberately don't also call this.
+          window.onUiButtonTap = function () { post('uitap'); };
         })();
         """
         let script = WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true)
@@ -194,6 +211,21 @@ extension NowPlayingBridge: WKScriptMessageHandler {
             // onCrankTurn call) — doesn't carry/affect Now Playing state,
             // just a haptic.
             crankFeedback.selectionChanged()
+            return
+
+        case "cranknotch":
+            // Fired repeatedly during a crank drag — no .prepare() call
+            // here (unlike the other generators): preparing on every
+            // single notch during a fast drag would fight the Taptic
+            // Engine's own re-arm timing more than it helps, and the
+            // generator re-primes itself automatically after each
+            // impactOccurred() anyway.
+            crankNotchFeedback.impactOccurred()
+            return
+
+        case "uitap":
+            uiTapFeedback.prepare()
+            uiTapFeedback.impactOccurred()
             return
 
         case "end":
