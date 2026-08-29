@@ -83,32 +83,48 @@
 
   const particles = [];
   let isPlaying   = false;
-  let spawnTimer  = 0;
 
-  const SPAWN_INTERVAL_MS = 220;
   const SPAWN_X_MIN = 0.25;
   const SPAWN_X_MAX = 0.75;
   const SPAWN_Y     = 0.55;
   const MAX_PARTICLES = 28; // hard cap so a slow frame can't snowball into more work
 
-  // If SpessaSynth exposes a per-note callback, wire it here to get real pitch data.
-  // Until then, we pick a random pitch for each particle — still produces the full
-  // Minecraft rainbow, just without pitch correlation to the actual notes playing.
-  function spawnNote(pitch) {
+  // Fallback pitch range if a song's real range (script.js's
+  // window._songPitchRange, built alongside the crank's note-onset
+  // timeline) isn't available yet — a generic piano-ish span so the
+  // linear mapping below still looks reasonable.
+  const FALLBACK_LOW_PITCH  = 36;
+  const FALLBACK_HIGH_PITCH = 84;
+
+  // Spawns one particle for a real note. X position is now a linear
+  // function of pitch — low notes spawn toward the left, high notes
+  // toward the right — rather than random, so the overlay reads as an
+  // actual (rough) visualization of the notes playing, piano-roll style.
+  function spawnNote(pitch, velocity) {
     if (particles.length >= MAX_PARTICLES) return;
     const usePitch = (pitch !== undefined) ? pitch : Math.floor(Math.random() * 25);
-    const x = (SPAWN_X_MIN + Math.random() * (SPAWN_X_MAX - SPAWN_X_MIN)) * noteCanvas.width;
+
+    const range = window._songPitchRange;
+    const lowPitch  = range ? range.low  : FALLBACK_LOW_PITCH;
+    const highPitch = range ? range.high : FALLBACK_HIGH_PITCH;
+    const span = Math.max(1, highPitch - lowPitch); // avoid divide-by-zero on single-note ranges
+    const t = Math.max(0, Math.min(1, (usePitch - lowPitch) / span));
+    const x = (SPAWN_X_MIN + t * (SPAWN_X_MAX - SPAWN_X_MIN)) * noteCanvas.width;
+
     const y = SPAWN_Y * noteCanvas.height;
+    // Velocity (0–127, may be undefined for the old random fallback)
+    // gives a subtle size/brightness boost to harder-hit notes.
+    const velT = (velocity !== undefined) ? Math.max(0, Math.min(1, velocity / 127)) : 0.5;
     particles.push({
       x,
       y,
       pitch    : usePitch,
       rgb      : pitchToRGB(usePitch),
       glyph    : NOTES_GLYPHS[Math.floor(Math.random() * NOTES_GLYPHS.length)],
-      size     : 14 + Math.random() * 12,  // flatter/smaller than before
+      size     : 14 + velT * 12,  // was: 14 + Math.random()*12 — now velocity-driven, not random
       vx       : (Math.random() - 0.5) * 0.7,
       vy       : -(0.9 + Math.random() * 1.2),
-      alpha    : 1,
+      alpha    : 0.7 + velT * 0.3,
       fadeRate : 0.012 + Math.random() * 0.01, // fades several x faster — fewer concurrent particles
       wobble   : Math.random() * Math.PI * 2,
       wobbleAmp: 0.4 + Math.random() * 0.6,
@@ -150,15 +166,11 @@
     lastTime = timestamp;
     const dtScale = dt / 16; // normalize motion/fade to ~60fps-equivalent steps
 
-    if (isPlaying) {
-      spawnTimer += dt;
-      if (spawnTimer >= SPAWN_INTERVAL_MS) {
-        spawnTimer = 0;
-        spawnNote();
-        if (Math.random() < 0.5) spawnNote();
-        if (Math.random() < 0.2) spawnNote();
-      }
-    }
+    // Spawning is now purely event-driven — window._spawnNoteParticle
+    // (below) is called directly from script.js's synth 'noteOn'
+    // listener for every real note played. No more random timer/cadence;
+    // isPlaying is retained only for the onMusicPlay/Pause/End hooks below
+    // in case a future feature needs to gate on playback state.
 
     ctx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
     ctx.save();
@@ -202,8 +214,10 @@
     if (_origEnd) _origEnd();
   };
 
-  // Expose spawnNote globally so future systems (e.g. SpessaSynth note-on
-  // callback) can pass a real pitch value: window._spawnNoteParticle(pitch)
+  // window._spawnNoteParticle(pitch, velocity) — called from script.js's
+  // synth 'noteOn' listener for every real note played (normal playback
+  // and crank stepNote() plinks alike). pitch/velocity are optional;
+  // omitting them falls back to the old random-pitch behavior.
   window._spawnNoteParticle = spawnNote;
 })();
 

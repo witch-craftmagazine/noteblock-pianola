@@ -82,6 +82,19 @@ async function buildNoteOnsets() {
 
   const ticks = [...byTick.keys()].sort((a, b) => a - b);
   noteOnsets = ticks.map(t => ({ time: midi.midiTicksToSeconds(t), notes: byTick.get(t) }));
+
+  // Publish this song's actual pitch range so the particle visualization
+  // (src/musicbox/particles.js) can map pitch → X position linearly
+  // across the real range used, rather than a fixed guess. Falls back to
+  // a generic piano-ish range in particles.js if this is ever unset.
+  let lowPitch = Infinity, highPitch = -Infinity;
+  for (const notes of byTick.values()) {
+    for (const { pitch } of notes) {
+      if (pitch < lowPitch) lowPitch = pitch;
+      if (pitch > highPitch) highPitch = pitch;
+    }
+  }
+  window._songPitchRange = (lowPitch <= highPitch) ? { low: lowPitch, high: highPitch } : null;
 }
 
 // Finds the nearest step strictly after (direction > 0) or before
@@ -986,6 +999,16 @@ async function ensureAudioContext() {
   await context.audioWorklet.addModule(WORKLET_PATH);
 
   synth = new WorkletSynthesizer(context);
+
+  // Real noteOn → particle visualization. Fires for every note the synth
+  // actually plays — normal scheduled playback AND the crank's stepNote()
+  // plinks (P: crank note-stepping) — so both drive the same particles.
+  // window._spawnNoteParticle(pitch, velocity) is defined in
+  // src/musicbox/particles.js; guard its absence so a load-order change
+  // can't throw here.
+  synth.eventHandler.addEvent('noteOn', 'note-particles', ({ midiNote, velocity }) => {
+    if (window._spawnNoteParticle) window._spawnNoteParticle(midiNote, velocity);
+  });
 
   // P8: Insert a dynamics compressor between the synth and destination.
   // This softens harsh peaks without squashing the overall dynamic range.
