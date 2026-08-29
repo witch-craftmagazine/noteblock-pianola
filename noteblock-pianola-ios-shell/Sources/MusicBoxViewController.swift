@@ -118,11 +118,31 @@ final class MusicBoxViewController: UIViewController {
 
     private var webView: WKWebView!
     private let splash = UIView()
+    private let nowPlayingBridge = NowPlayingBridge()
 
     /// Set by AppDelegate before the web view has finished its first
     /// load; applied once didFinish fires. Avoids racing a deep link
     /// against page load.
     private var pendingSongSlug: String?
+
+    /// Same queuing problem as `pendingSongSlug`, for Home Screen Quick
+    /// Actions (see `handleShortcut(_:)`).
+    private var pendingShortcutAction: ShortcutAction?
+
+    /// Mirrors the `UIApplicationShortcutItemType` strings declared as
+    /// static items in Info.plist (`UIApplicationShortcutItems`).
+    enum ShortcutAction {
+        case shuffle
+        case resumeLastSong
+
+        init?(shortcutItemType: String) {
+            switch shortcutItemType {
+            case "com.witchcraftmagazine.noteblockpianola.shuffle": self = .shuffle
+            case "com.witchcraftmagazine.noteblockpianola.resume": self = .resumeLastSong
+            default: return nil
+            }
+        }
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -135,11 +155,13 @@ final class MusicBoxViewController: UIViewController {
         // deliberately; nothing to override here.
         configuration.allowsInlineMediaPlayback = true
         installConsoleBridge(into: configuration)
+        nowPlayingBridge.install(into: configuration)
         if !Self.useRemoteContent, let webDir = Bundle.main.url(forResource: "web", withExtension: nil) {
             configuration.setURLSchemeHandler(LocalWebSchemeHandler(webDirectory: webDir), forURLScheme: Self.localScheme)
         }
 
         webView = WKWebView(frame: view.bounds, configuration: configuration)
+        nowPlayingBridge.webView = webView
         webView.translatesAutoresizingMaskIntoConstraints = false
         webView.navigationDelegate = self
         webView.scrollView.bounces = false
@@ -189,6 +211,16 @@ final class MusicBoxViewController: UIViewController {
         webView.load(URLRequest(url: Self.localOrigin.appendingPathComponent("index.html")))
     }
 
+    /// Called by AppDelegate on an audio interruption (call/Siri/route
+    /// change) — see AppDelegate's `handleInterruption`/`handleRouteChange`.
+    /// Guards on `webViewHasFinishedFirstLoad` the same way `loadSong`
+    /// does, since an interruption is possible (if unlikely) before the
+    /// page has loaded `window.musicPlayer` at all.
+    func pausePlayback() {
+        guard webViewHasFinishedFirstLoad else { return }
+        webView.evaluateJavaScript("if (window.musicPlayer) { window.musicPlayer.pause(); }")
+    }
+
     // MARK: - Deep linking
 
     /// Called by AppDelegate for both the custom-scheme and Universal
@@ -205,12 +237,58 @@ final class MusicBoxViewController: UIViewController {
         applySongSlug(slug)
     }
 
+    /// Called by AppDelegate for a Home Screen Quick Action tap — same
+    /// "queue if the page isn't ready yet" guard as `loadSong`, since a
+    /// shortcut can cold-launch the app and this fires before
+    /// `webViewHasFinishedFirstLoad` in that case.
+    func handleShortcut(_ action: ShortcutAction) {
+        guard webViewHasFinishedFirstLoad else {
+            pendingShortcutAction = action
+            return
+        }
+        applyShortcutAction(action)
+    }
+
+    private func applyShortcutAction(_ action: ShortcutAction) {
+        switch action {
+        case .shuffle:
+            evaluateIfLoaded("window.musicPlayer && window.musicPlayer.shuffle();")
+
+        case .resumeLastSong:
+            // Read the slug script.js persists on every track load (see
+            // LAST_SONG_STORAGE_KEY in script.js) rather than adding a
+            // second, native-only notion of "last song" — one source of
+            // truth. This is also the piece of Task 3 that genuinely
+            // needs on-device confirmation: localStorage under this
+            // app's custom `noteblock-web://local` origin (see
+            // LocalWebSchemeHandler) should persist across launches the
+            // same way it would for a real https origin, since nothing
+            // here opts into a non-persistent WKWebsiteDataStore — but
+            // that's an assumption, not something a Linux sandbox or
+            // simulator-only run can verify. If a Quick Action tap does
+            // nothing on a second cold launch, check that first before
+            // assuming the shortcut wiring itself is broken.
+            webView.evaluateJavaScript("localStorage.getItem('noteblock-pianola:lastSong');") { [weak self] result, _ in
+                guard let self, let slug = result as? String, !slug.isEmpty else { return }
+                self.applySongSlug(slug)
+            }
+        }
+    }
+
+    private func evaluateIfLoaded(_ js: String) {
+        guard webViewHasFinishedFirstLoad else { return }
+        webView.evaluateJavaScript(js)
+    }
+
     private var webViewHasFinishedFirstLoad = false
 
     deinit {
         #if DEBUG
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "consoleBridge")
         #endif
+        if let webView {
+            nowPlayingBridge.teardown(from: webView.configuration)
+        }
     }
 
     private func applySongSlug(_ slug: String) {
@@ -341,6 +419,10 @@ extension MusicBoxViewController: WKNavigationDelegate {
         if let slug = pendingSongSlug {
             pendingSongSlug = nil
             applySongSlug(slug)
+        }
+        if let action = pendingShortcutAction {
+            pendingShortcutAction = nil
+            applyShortcutAction(action)
         }
     }
 

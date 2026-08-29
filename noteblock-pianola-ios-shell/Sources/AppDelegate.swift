@@ -16,6 +16,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         configureAudioSession()
+        observeAudioSessionNotifications()
 
         let window = UIWindow(frame: UIScreen.main.bounds)
         let root = MusicBoxViewController()
@@ -50,6 +51,74 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             print("AVAudioSession configuration failed: \(error)")
             #endif
         }
+    }
+
+    // MARK: - Interruptions & route changes
+    //
+    // Without these, background/lock-screen playback "works" in the
+    // trivial sense (audio keeps going until something interrupts it),
+    // but a phone call, Siri, or another app grabbing the audio session
+    // leaves the web app's own `playing` state and UI (script.js's
+    // `ui.play` button, seek loop) out of sync with what's actually
+    // audible afterward, and unplugging headphones would otherwise keep
+    // blasting audio out the speaker instead of pausing like every other
+    // media app does.
+    private func observeAudioSessionNotifications() {
+        let center = NotificationCenter.default
+        center.addObserver(
+            self,
+            selector: #selector(handleInterruption(_:)),
+            name: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+        center.addObserver(
+            self,
+            selector: #selector(handleRouteChange(_:)),
+            name: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+    }
+
+    @objc private func handleInterruption(_ notification: Notification) {
+        guard let info = notification.userInfo,
+              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+        switch type {
+        case .began:
+            // iOS has already stopped audio output at this point (call
+            // ringing, Siri activated, another app took the session).
+            // Tell script.js to pause so `window.musicPlayer.isPlaying()`,
+            // the play/pause button, and the lock-screen state (via
+            // NowPlayingBridge's onMusicPause hook, fired as a
+            // consequence of this) all agree with reality.
+            pauseWebPlayback()
+        case .ended:
+            // Resuming automatically on `.shouldResume` would restart
+            // audio without the person asking for it again after e.g. a
+            // phone call — leave it paused and let them tap play, same
+            // as Music.app's behavior for most interruption types.
+            break
+        @unknown default:
+            break
+        }
+    }
+
+    @objc private func handleRouteChange(_ notification: Notification) {
+        guard let info = notification.userInfo,
+              let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
+
+        // .oldDeviceUnavailable fires when headphones/Bluetooth audio is
+        // unplugged/disconnected mid-playback — pause rather than switch
+        // to blasting out the speaker unannounced.
+        if reason == .oldDeviceUnavailable {
+            pauseWebPlayback()
+        }
+    }
+
+    private func pauseWebPlayback() {
+        (window?.rootViewController as? MusicBoxViewController)?.pausePlayback()
     }
 
     // MARK: - Deep linking (Phase 3, optional)
@@ -93,5 +162,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         root.loadSong(slug: slug)
         return true
+    }
+
+    // MARK: - Home Screen Quick Actions
+    //
+    // Static items (UIApplicationShortcutItems, Info.plist) rather than
+    // dynamic ones registered at runtime — there's nothing user/session-
+    // specific about "Shuffle" or "Resume last song" that would need
+    // updating between launches, so static is simpler and sufficient.
+    //
+    // A shortcut can also *launch* the app (cold start), in which case
+    // this callback fires after `didFinishLaunchingWithOptions` but the
+    // web view's first page load is very unlikely to have finished yet.
+    // `MusicBoxViewController.handleShortcut(_:)` below queues the action
+    // the same way `loadSong`/deep links already queue against
+    // `webViewHasFinishedFirstLoad`, rather than assuming the page (and
+    // `window.musicPlayer`) is ready to call into.
+    func application(
+        _ application: UIApplication,
+        performActionFor shortcutItem: UIApplicationShortcutItem,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        guard let root = window?.rootViewController as? MusicBoxViewController,
+              let action = MusicBoxViewController.ShortcutAction(shortcutItemType: shortcutItem.type) else {
+            completionHandler(false)
+            return
+        }
+        root.handleShortcut(action)
+        completionHandler(true)
     }
 }
