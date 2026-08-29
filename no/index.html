@@ -9,7 +9,7 @@
     <meta property="og:description" content="Found footage" />
     <meta
       property="og:image"
-      content="https://witch-craftmagazine.github.io/noteblock-pianola/piano/panorama_1.webp"
+      content="https://witch-craftmagazine.github.io/noteblock-pianola/no/piano/panorama_1.webp"
     />
     <meta
       property="og:url"
@@ -22,7 +22,7 @@
     <meta name="twitter:description" content="Found footage" />
     <meta
       name="twitter:image"
-      content="https://witch-craftmagazine.github.io/noteblock-pianola/piano/panorama_1.webp"
+      content="https://witch-craftmagazine.github.io/noteblock-pianola/no/piano/panorama_1.webp"
     />
 
     <link
@@ -161,7 +161,7 @@
         position: absolute;
         inset: -10%;
 
-        background: url("../monster.png") no-repeat;
+        background: url("monster.png") no-repeat;
         background-size: 70%;
 
         opacity: 0;
@@ -256,13 +256,13 @@
       <button id="toggle-rotation">⏸ PAUSE</button>
 
       <audio id="scare-audio" preload="auto">
-        <source src="../scare.mp3" type="audio/mpeg" />
+        <source src="scare.mp3" type="audio/mpeg" />
       </audio>
       <audio id="heartbeat-audio" preload="auto" loop>
-        <source src="../heartbeat.mp3" type="audio/mpeg" />
+        <source src="heartbeat.mp3" type="audio/mpeg" />
       </audio>
       <audio id="rain-audio" preload="auto" loop>
-        <source src="../rain.mp3" type="audio/mpeg" />
+        <source src="rain.mp3" type="audio/mpeg" />
       </audio>
     </div>
     <!-- /#crt-frame -->
@@ -283,12 +283,12 @@
 
       const loader = new THREE.CubeTextureLoader();
       scene.background = loader.load([
-        "../piano/panorama_2.webp",
-        "../piano/panorama_0.webp",
-        "../piano/panorama_4.webp",
-        "../piano/panorama_5.webp",
-        "../piano/panorama_1.webp",
-        "../piano/panorama_3.webp",
+        "piano/panorama_2.webp",
+        "piano/panorama_0.webp",
+        "piano/panorama_4.webp",
+        "piano/panorama_5.webp",
+        "piano/panorama_1.webp",
+        "piano/panorama_3.webp",
       ]);
 
       /* ── State ── */
