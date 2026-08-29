@@ -7,11 +7,8 @@
 //  window.onMusicPlay/Pause/End handlers; particles.js wraps those
 //  handlers (chain pattern), so it must come after scene.js.
 //  bg-toggle.js and soundfont-toggle.js are both independent of the
-//  onMusicPlay/Pause/End chain — bg-toggle.js is currently dormant
-//  (index.html has no #bg-toggle button; see that file's header
-//  comment) but stays imported so re-adding the button is a
-//  zero-JS-change operation. `bun run build` bundles this file (and
-//  its three.js import) into dist/main.js.
+//  onMusicPlay/Pause/End chain. `bun run build` bundles this file
+//  (and its three.js import) into dist/main.js.
 // ─────────────────────────────────────────────────────────────────
 import './scene.js';
 import './particles.js';
