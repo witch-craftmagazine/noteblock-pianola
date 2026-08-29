@@ -12,9 +12,18 @@
   touch-action: none;
   }
 
-  /* Goal 4b: Background webp class */
-  body.bg-image {
-  background: url('./background.webp') center / cover no-repeat;
+  /* Goal 4b (superseded — see #bg-canvas below): single hardcoded
+     background image toggle. No longer used; body.bg-image rule and the
+     background.webp asset are removed in favor of the procedurally
+     generated canvas, since no image assets are shipped for this feature. */
+
+  #bg-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;          /* behind #canvas-container's normal-flow content */
+  pointer-events: none; /* purely decorative, never intercepts input */
   }
 
   #canvas-container {
@@ -170,15 +179,12 @@
   z-index: 5;
   }
 
-  /* Goal 4b: Background toggle button */
-  /* Dormant: no button currently references #bg-toggle (removed from
-     index.html in favor of #github-flap in the same corner). Rule and
-     src/musicbox/bg-toggle.js are both kept intact so the toggle can be
-     reinstated later by re-adding the button markup — no JS changes
-     needed at that point. */
+  /* Dynamic background toggle — same corner-button styling as #sf-toggle,
+     positioned top-right but dropped below #github-flap (which now owns
+     the very corner) so the two don't overlap. */
   #bg-toggle {
   position: absolute;
-  top: max(14px, env(safe-area-inset-top));
+  top: calc(max(14px, env(safe-area-inset-top)) + 76px);
   right: max(14px, env(safe-area-inset-right));
   z-index: 30;
   background: rgba(20, 12, 8, 0.75);
@@ -195,6 +201,7 @@
   user-select: none;
   }
   #bg-toggle:hover { background: rgba(255,255,255,0.12); }
+  #bg-toggle.active { background: rgba(255,255,255,0.14); border-color: rgba(200,168,90,0.5); }
 
   /* Soundfont switcher button — visually matches the corner buttons/flap
      pattern, positioned top-left (mirrors #github-flap, top-right) */
@@ -267,6 +274,7 @@
   @media (max-width: 480px) {
   #github-flap { width: 68px; height: 68px; }
   #github-flap-label { top: 14px; right: -22px; width: 96px; font-size: 10px; padding: 3px 0; }
+  #bg-toggle { top: calc(max(14px, env(safe-area-inset-top)) + 62px); }
   }
 
   /* ── Minecraft skip overlay ── */

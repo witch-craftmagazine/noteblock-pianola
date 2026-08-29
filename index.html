@@ -58,6 +58,11 @@
 </head>
 <body>
 
+<!-- Procedural background canvas (src/musicbox/bg-toggle.js). Sits behind
+     #canvas-container. Off by default — draws only once the user opts in
+     via the #bg-toggle button (top-right, mirrors #sf-toggle). -->
+<canvas id="bg-canvas"></canvas>
+
 <div id="canvas-container">
   <canvas id="three-canvas"></canvas>
 
@@ -107,11 +112,7 @@
   </div>
 </div>
 
-<!-- GitHub source flap — replaces the old background-toggle button in the
-     top-right corner. There's no room at the bottom on mobile (see
-     #music-player), and the BG toggle no longer serves a purpose, so this
-     corner now carries the repo link instead. bg-toggle.js / .bg-image
-     CSS are both left in place, dormant, in case the toggle comes back. -->
+<!-- GitHub source flap — top-right corner, next to #bg-toggle. -->
 <a id="github-flap"
    href="https://github.com/witch-craftmagazine/noteblock-pianola"
    target="_blank" rel="noopener noreferrer"
@@ -122,6 +123,11 @@
 <!-- Soundfont switcher: button in src/musicbox/soundfont-toggle.js opens a
      dropdown listing soundfonts/manifest.json entries. -->
 <button id="sf-toggle" title="Change soundfont">🎼 SF</button>
+
+<!-- Dynamic background toggle: on/off switch for the procedurally
+     generated, per-song background in src/musicbox/bg-toggle.js.
+     Off by default (see #bg-canvas above). -->
+<button id="bg-toggle" title="Toggle dynamic background">⬜ BG</button>
 
 <!-- Three.js scene (camera, GLB, crank/lid animation, note particles, bg toggle) -->
 <!-- Bundled from src/musicbox/ via `bun run build` -- see package.json -->

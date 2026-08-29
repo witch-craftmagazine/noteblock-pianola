@@ -146,6 +146,9 @@ function stepNote(direction) {
 // ── Soundfont switching ───────────────────────────────────────────
 let soundfonts          = [];    // [{ id, label, file }] — from soundfonts/manifest.json
 let currentSoundfontId  = null;
+// Cannon explosion particles (see synth 'noteOn' listener in
+// ensureAudioContext below) key off this id from soundfonts/manifest.json.
+const CANNON_SOUNDFONT_ID = 'napoleonic-cannon';
 let soundfontSwitching  = false; // guards overlapping switches
 let sfBankCounter       = 0;     // gives each bank registered with the synth a unique id
 let activeBankId        = null;  // the bank id currently registered in the running synth, if any
@@ -1003,11 +1006,18 @@ async function ensureAudioContext() {
   // Real noteOn → particle visualization. Fires for every note the synth
   // actually plays — normal scheduled playback AND the crank's stepNote()
   // plinks (P: crank note-stepping) — so both drive the same particles.
-  // window._spawnNoteParticle(pitch, velocity) is defined in
-  // src/musicbox/particles.js; guard its absence so a load-order change
-  // can't throw here.
+  // While the Napoleonic Cannon soundfont is active (currentSoundfontId
+  // === CANNON_SOUNDFONT_ID, kept in sync by setSoundfont), notes spawn
+  // explosion particles instead of the usual note particles.
+  // window._spawnNoteParticle / _spawnExplosion are both defined in
+  // src/musicbox/particles.js — guard their absence so a load-order
+  // change can't throw here.
   synth.eventHandler.addEvent('noteOn', 'note-particles', ({ midiNote, velocity }) => {
-    if (window._spawnNoteParticle) window._spawnNoteParticle(midiNote, velocity);
+    if (currentSoundfontId === CANNON_SOUNDFONT_ID) {
+      if (window._spawnExplosion) window._spawnExplosion(midiNote, velocity);
+    } else {
+      if (window._spawnNoteParticle) window._spawnNoteParticle(midiNote, velocity);
+    }
   });
 
   // P8: Insert a dynamics compressor between the synth and destination.
@@ -1152,6 +1162,15 @@ function setVolume(sliderVal) {
 
 function updateTrackName(index) {
   ui.trackName.textContent = '♪  ' + friendlyName(tracks[index]);
+
+  // For src/musicbox/bg-toggle.js's procedural background — same
+  // title/artist/year already parsed into trackMeta by parseMeta().
+  const meta = trackMeta[index];
+  if (meta) {
+    window.dispatchEvent(new CustomEvent('track:changed', {
+      detail: { title: meta.title, artist: meta.artist, year: meta.year }
+    }));
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1200,6 +1219,12 @@ async function handleUpload() {
     seq.loadNewSongList([song]);
     songLoaded = true;
     buildNoteOnsets(); // async, non-blocking — crank stepping just no-ops until this resolves
+
+    // Same parseMeta() heuristic used for library tracks, so an
+    // uploaded file also drives src/musicbox/bg-toggle.js's procedural
+    // background instead of leaving it stuck on the last library track.
+    const uploadMeta = parseMeta(file.name);
+    window.dispatchEvent(new CustomEvent('track:changed', { detail: uploadMeta }));
 
     // Stamp _currentSong with the filename (without extension) so easter
     // egg triggers still work — e.g. uploading i_feel_pretty_1957_-_bernstein.mid

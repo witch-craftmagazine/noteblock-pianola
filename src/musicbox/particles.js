@@ -89,12 +89,29 @@
   const SPAWN_Y     = 0.55;
   const MAX_PARTICLES = 28; // hard cap so a slow frame can't snowball into more work
 
+  // Explosion particles (cannon soundfont) get their own cap, separate
+  // from MAX_PARTICLES above — each note-on spawns several of them at
+  // once (a debris burst + smoke puffs), so sharing the note cap would
+  // let a busy cannon passage crowd out everything else, or vice versa.
+  const MAX_EXPLOSION_PARTICLES = 40;
+
   // Fallback pitch range if a song's real range (script.js's
   // window._songPitchRange, built alongside the crank's note-onset
   // timeline) isn't available yet — a generic piano-ish span so the
   // linear mapping below still looks reasonable.
   const FALLBACK_LOW_PITCH  = 36;
   const FALLBACK_HIGH_PITCH = 84;
+
+  // Shared by spawnNote and spawnExplosion: maps a MIDI pitch to canvas
+  // X using the song's real pitch range when available (see feature 2).
+  function pitchToX(pitch) {
+    const range = window._songPitchRange;
+    const lowPitch  = range ? range.low  : FALLBACK_LOW_PITCH;
+    const highPitch = range ? range.high : FALLBACK_HIGH_PITCH;
+    const span = Math.max(1, highPitch - lowPitch); // avoid divide-by-zero on single-note ranges
+    const t = Math.max(0, Math.min(1, (pitch - lowPitch) / span));
+    return (SPAWN_X_MIN + t * (SPAWN_X_MAX - SPAWN_X_MIN)) * noteCanvas.width;
+  }
 
   // Spawns one particle for a real note. X position is now a linear
   // function of pitch — low notes spawn toward the left, high notes
@@ -104,18 +121,13 @@
     if (particles.length >= MAX_PARTICLES) return;
     const usePitch = (pitch !== undefined) ? pitch : Math.floor(Math.random() * 25);
 
-    const range = window._songPitchRange;
-    const lowPitch  = range ? range.low  : FALLBACK_LOW_PITCH;
-    const highPitch = range ? range.high : FALLBACK_HIGH_PITCH;
-    const span = Math.max(1, highPitch - lowPitch); // avoid divide-by-zero on single-note ranges
-    const t = Math.max(0, Math.min(1, (usePitch - lowPitch) / span));
-    const x = (SPAWN_X_MIN + t * (SPAWN_X_MAX - SPAWN_X_MIN)) * noteCanvas.width;
-
+    const x = pitchToX(usePitch);
     const y = SPAWN_Y * noteCanvas.height;
     // Velocity (0–127, may be undefined for the old random fallback)
     // gives a subtle size/brightness boost to harder-hit notes.
     const velT = (velocity !== undefined) ? Math.max(0, Math.min(1, velocity / 127)) : 0.5;
     particles.push({
+      kind     : 'note',
       x,
       y,
       pitch    : usePitch,
@@ -129,6 +141,79 @@
       wobble   : Math.random() * Math.PI * 2,
       wobbleAmp: 0.4 + Math.random() * 0.6,
     });
+  }
+
+  // ── Cannon explosion particles ────────────────────────────────────
+  // Two-layer burst, modeled on the "Explosive Enhancement" Minecraft
+  // mod reference: a radial spray of small, fast, gray/ember debris
+  // particles, plus a couple of larger, slower, soft gray smoke puffs
+  // that drift and linger after the debris has faded. Both scale with
+  // note velocity, matching that mod's power-scaled explosion sizing.
+  // Flat-shape rendering (no sprite) — chunky/blocky reads as
+  // "Minecraft particle" on its own, and needs no new image asset.
+  const DEBRIS_COLORS = ['#4a4a4a', '#6e6e6e', '#c7c7c7', '#ff9d3d', '#ffd23d'];
+
+  function spawnDebrisParticle(x, y, velT) {
+    if (countByKind('debris') + countByKind('smoke') >= MAX_EXPLOSION_PARTICLES) return;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (1.2 + Math.random() * 2.2) * (0.6 + velT * 0.8);
+    particles.push({
+      kind     : 'debris',
+      x, y,
+      color    : DEBRIS_COLORS[Math.floor(Math.random() * DEBRIS_COLORS.length)],
+      size     : 3 + Math.random() * 3 + velT * 3,
+      vx       : Math.cos(angle) * speed,
+      vy       : Math.sin(angle) * speed - 0.6, // slight upward bias so the burst doesn't sink immediately
+      gravity  : 0.05,
+      alpha    : 1,
+      fadeRate : 0.03 + Math.random() * 0.02, // debris is quick — burst, not lingering
+      rotation : Math.random() * Math.PI * 2,
+      spin     : (Math.random() - 0.5) * 0.3,
+    });
+  }
+
+  function spawnSmokePuff(x, y, velT) {
+    if (countByKind('debris') + countByKind('smoke') >= MAX_EXPLOSION_PARTICLES) return;
+    particles.push({
+      kind     : 'smoke',
+      x, y,
+      size     : (16 + Math.random() * 10) * (0.7 + velT * 0.6),
+      vx       : (Math.random() - 0.5) * 0.4,
+      vy       : -(0.3 + Math.random() * 0.3), // slow upward drift
+      alpha    : 0.35 + velT * 0.15,
+      fadeRate : 0.008 + Math.random() * 0.006, // lingers after debris fades
+    });
+  }
+
+  function countByKind(kind) {
+    let n = 0;
+    for (const p of particles) if (p.kind === kind) n++;
+    return n;
+  }
+
+  const DEBRIS_PER_EXPLOSION_MIN = 6;
+  const DEBRIS_PER_EXPLOSION_MAX = 10;
+  const SMOKE_PER_EXPLOSION_MIN  = 1;
+  const SMOKE_PER_EXPLOSION_MAX  = 2;
+
+  // window._spawnExplosion(pitch, velocity) — called instead of
+  // spawnNote() while the cannon soundfont is active (see script.js's
+  // synth 'noteOn' listener). Origin X reuses the same pitch→X mapping
+  // as normal notes, so cannon mode still reads left-to-right by pitch.
+  function spawnExplosion(pitch, velocity) {
+    const usePitch = (pitch !== undefined) ? pitch : 60;
+    const velT = (velocity !== undefined) ? Math.max(0, Math.min(1, velocity / 127)) : 0.7;
+
+    const x = pitchToX(usePitch);
+    const y = SPAWN_Y * noteCanvas.height;
+
+    const debrisCount = DEBRIS_PER_EXPLOSION_MIN +
+      Math.round(velT * (DEBRIS_PER_EXPLOSION_MAX - DEBRIS_PER_EXPLOSION_MIN));
+    for (let i = 0; i < debrisCount; i++) spawnDebrisParticle(x, y, velT);
+
+    const smokeCount = SMOKE_PER_EXPLOSION_MIN +
+      Math.round(velT * (SMOKE_PER_EXPLOSION_MAX - SMOKE_PER_EXPLOSION_MIN));
+    for (let i = 0; i < smokeCount; i++) spawnSmokePuff(x, y, velT);
   }
 
   // ── Tinted sprite draw ──────────────────────────────────────────
@@ -155,6 +240,30 @@
     ctx.fillText(p.glyph, p.x, p.y);
   }
 
+  // ── Debris / smoke draw ──────────────────────────────────────────
+  // Flat shapes, no sprite — small rotating squares for debris (chunky,
+  // "Minecraft particle" read), soft radial-gradient blobs for smoke.
+  function drawDebris(p) {
+    ctx.globalAlpha = Math.max(0, p.alpha);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rotation);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+    ctx.restore();
+  }
+
+  function drawSmoke(p) {
+    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+    const a = Math.max(0, p.alpha);
+    grad.addColorStop(0, `rgba(90,90,90,${a})`);
+    grad.addColorStop(1, `rgba(90,90,90,0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   let lastTime = null;
   const MAX_DT = 50; // ms — clamp so a slow/backgrounded frame can't fling particles
 
@@ -177,6 +286,29 @@
 
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
+
+      if (p.kind === 'debris') {
+        p.vy     += p.gravity * dtScale;
+        p.x      += p.vx * dtScale;
+        p.y      += p.vy * dtScale;
+        p.rotation += p.spin * dtScale;
+        p.alpha  -= p.fadeRate * dtScale;
+        if (p.alpha <= 0) { particles.splice(i, 1); continue; }
+        drawDebris(p);
+        continue;
+      }
+
+      if (p.kind === 'smoke') {
+        p.x     += p.vx * dtScale;
+        p.y     += p.vy * dtScale;
+        p.size  += 0.15 * dtScale; // slowly expands as it drifts, like a dissipating puff
+        p.alpha -= p.fadeRate * dtScale;
+        if (p.alpha <= 0) { particles.splice(i, 1); continue; }
+        drawSmoke(p);
+        continue;
+      }
+
+      // 'note' particles (default/fallback for entries with no kind)
       p.wobble += 0.03 * dtScale;
       p.x      += (p.vx + Math.sin(p.wobble) * p.wobbleAmp) * dtScale;
       p.y      += p.vy * dtScale;
@@ -219,6 +351,11 @@
   // and crank stepNote() plinks alike). pitch/velocity are optional;
   // omitting them falls back to the old random-pitch behavior.
   window._spawnNoteParticle = spawnNote;
+
+  // window._spawnExplosion(pitch, velocity) — called from the same
+  // listener instead of _spawnNoteParticle while the Napoleonic Cannon
+  // soundfont is active (see script.js's isCannonMode check).
+  window._spawnExplosion = spawnExplosion;
 })();
 
 export {};
