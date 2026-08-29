@@ -1,0 +1,310 @@
+name: Release IPA and Publish AltStore Source
+
+# Two ways in, same shape as the Nectar project's release.yml:
+#   - workflow_dispatch: full build -> attach unsigned IPA to a release
+#     -> publish appstore/source.json.
+#   - release (edited): re-runs just publish-source (no rebuild) so that
+#     hand-editing a release's notes on GitHub after the dispatch run
+#     already published source.json still reaches the AltStore source.
+#
+# Unlike Nectar, this repo does NOT keep a separate gh-pages branch --
+# static.yml deploys the whole repo (path: '.') from main on every push,
+# so publish-source here commits appstore/source.json straight back to
+# main instead of merging into a gh-pages checkout.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create/attach the IPA to (e.g. v1.0.0)"
+        required: true
+        type: string
+  release:
+    types: [edited]
+
+permissions:
+  contents: write
+
+jobs:
+  build-ipa-release:
+    name: Build and Release Unsigned IPA
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-14
+    outputs:
+      tag: ${{ inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build the web app
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Stage web assets into the iOS shell
+        run: |
+          mkdir -p noteblock-pianola-ios-shell/web
+          rsync -a \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude 'song/' \
+            --exclude 'noteblock-pianola-ios-shell/' \
+            ./ noteblock-pianola-ios-shell/web/
+
+      - name: Generate Xcode project
+        working-directory: noteblock-pianola-ios-shell
+        run: xcodegen generate
+
+      - name: Archive (unsigned)
+        shell: bash
+        working-directory: noteblock-pianola-ios-shell
+        run: |
+          set -euo pipefail
+
+          archive_path="${RUNNER_TEMP}/NoteblockPianola.xcarchive"
+          rm -rf "$archive_path"
+
+          # Suffix CURRENT_PROJECT_VERSION with the run number so the
+          # buildVersion embedded in this ipa matches what publish-source
+          # writes to appstore/source.json -- AltStore refuses to install
+          # if they disagree. Mirrors Nectar's release.yml.
+          base_project_version=$(xcodebuild -showBuildSettings \
+            -project NoteblockPianola.xcodeproj \
+            -scheme NoteblockPianola \
+            -destination "generic/platform=iOS" \
+            | grep -m1 '^\s*CURRENT_PROJECT_VERSION' | awk -F'= ' '{print $2}')
+          build_version="${base_project_version}.${GITHUB_RUN_NUMBER}"
+
+          marketing_version="${{ inputs.tag }}"
+          marketing_version="${marketing_version#v}"
+
+          set -o pipefail
+          xcodebuild \
+            -project NoteblockPianola.xcodeproj \
+            -scheme NoteblockPianola \
+            -destination "generic/platform=iOS" \
+            -archivePath "$archive_path" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CURRENT_PROJECT_VERSION="$build_version" \
+            MARKETING_VERSION="$marketing_version" \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            archive
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          archive_path="${RUNNER_TEMP}/NoteblockPianola.xcarchive"
+          payload_dir="${RUNNER_TEMP}/Payload"
+          ipa_path="${RUNNER_TEMP}/NoteblockPianola-unsigned.ipa"
+
+          app_path=$(find "$archive_path/Products/Applications" -maxdepth 1 -name "*.app" | head -n1)
+          if [ -z "$app_path" ]; then
+            echo "No .app found in archive products" >&2
+            exit 1
+          fi
+
+          rm -rf "$payload_dir" "$ipa_path"
+          mkdir -p "$payload_dir"
+          cp -R "$app_path" "$payload_dir/"
+
+          (cd "${RUNNER_TEMP}" && zip -qr "$(basename "$ipa_path")" "Payload")
+
+          mkdir -p build-output
+          cp "$ipa_path" build-output/
+
+          echo "IPA_PATH=build-output/NoteblockPianola-unsigned.ipa" >> "$GITHUB_ENV"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noteblock-pianola-unsigned-ipa
+          path: ${{ env.IPA_PATH }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach IPA to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          tag="${{ inputs.tag }}"
+
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$tag" "$IPA_PATH" --repo "${{ github.repository }}" --clobber
+          else
+            gh release create "$tag" "$IPA_PATH" \
+              --repo "${{ github.repository }}" \
+              --title "$tag" \
+              --generate-notes
+          fi
+
+  publish-source:
+    name: Publish appstore/source.json
+    needs: build-ipa-release
+    # Same always()-plus-explicit-check pattern as Nectar's release.yml:
+    # needed so a `release: edited` run isn't skipped just because
+    # build-ipa-release's own `if` only allows workflow_dispatch, while a
+    # workflow_dispatch run still won't proceed past a failed build.
+    if: always() && (github.event_name == 'release' || needs.build-ipa-release.result == 'success')
+    runs-on: macos-14
+    steps:
+      - name: Resolve release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag_name="${{ github.event.release.tag_name }}"
+          else
+            tag_name="${{ needs.build-ipa-release.outputs.tag }}"
+          fi
+          release_json=$(gh api "repos/${{ github.repository }}/releases/tags/$tag_name")
+          release_id=$(echo "$release_json" | jq -r '.id')
+          published_at=$(echo "$release_json" | jq -r '.published_at')
+          body=$(echo "$release_json" | jq -r '.body // ""')
+
+          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "published_at=$published_at" >> "$GITHUB_OUTPUT"
+          {
+            echo "body<<RELEASE_BODY_EOF"
+            echo "$body"
+            echo "RELEASE_BODY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          # Explicit ref: for the `release` (edited) trigger, github.ref is
+          # the release's own tag, not main. This job always reads/writes
+          # appstore/ on main.
+          ref: main
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build the web app and stage web/
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+          mkdir -p noteblock-pianola-ios-shell/web
+          rsync -a \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude 'song/' \
+            --exclude 'noteblock-pianola-ios-shell/' \
+            ./ noteblock-pianola-ios-shell/web/
+
+      - name: Generate Xcode project
+        working-directory: noteblock-pianola-ios-shell
+        run: xcodegen generate
+
+      - name: Read build settings
+        id: settings
+        working-directory: noteblock-pianola-ios-shell
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag_name="${{ steps.release.outputs.tag_name }}"
+          marketing_version_override="${tag_name#v}"
+
+          settings=$(xcodebuild -showBuildSettings \
+            -project NoteblockPianola.xcodeproj \
+            -scheme NoteblockPianola \
+            -destination "generic/platform=iOS" \
+            MARKETING_VERSION="$marketing_version_override" 2>xcodebuild-showbuildsettings.log) || {
+            echo "::error::xcodebuild -showBuildSettings failed. stderr was:"
+            cat xcodebuild-showbuildsettings.log
+            exit 1
+          }
+
+          marketing_version=$(echo "$settings" | grep -m1 '^\s*MARKETING_VERSION' | awk -F'= ' '{print $2}')
+          current_project_version=$(echo "$settings" | grep -m1 '^\s*CURRENT_PROJECT_VERSION' | awk -F'= ' '{print $2}')
+          min_os_version=$(echo "$settings" | grep -m1 '^\s*IPHONEOS_DEPLOYMENT_TARGET' | awk -F'= ' '{print $2}')
+
+          build_version="${current_project_version}.${GITHUB_RUN_NUMBER}"
+
+          echo "marketing_version=$marketing_version" >> "$GITHUB_OUTPUT"
+          echo "build_version=$build_version" >> "$GITHUB_OUTPUT"
+          echo "min_os_version=$min_os_version" >> "$GITHUB_OUTPUT"
+
+      - name: Find IPA release asset
+        id: asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          asset_json=$(gh api "repos/${{ github.repository }}/releases/${{ steps.release.outputs.release_id }}/assets" \
+            --jq '[.[] | select(.name | endswith(".ipa"))][0]')
+
+          if [ -z "$asset_json" ] || [ "$asset_json" = "null" ]; then
+            echo "No .ipa asset found on release ${{ steps.release.outputs.tag_name }}" >&2
+            exit 1
+          fi
+
+          download_url=$(echo "$asset_json" | jq -r '.browser_download_url')
+          size=$(echo "$asset_json" | jq -r '.size')
+
+          echo "download_url=$download_url" >> "$GITHUB_OUTPUT"
+          echo "size=$size" >> "$GITHUB_OUTPUT"
+
+      - name: Check icon is present
+        run: |
+          set -euo pipefail
+          if [ ! -f appstore/icon.png ]; then
+            echo "::error::appstore/icon.png is missing -- add and commit it before publishing a source." >&2
+            exit 1
+          fi
+
+      - name: Merge new version into appstore/source.json
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          existing_arg=""
+          if [ -f appstore/source.json ]; then
+            existing_arg="--existing=appstore/source.json"
+          fi
+
+          python3 scripts/update_source.py \
+            --template=appstore/source.template.json \
+            $existing_arg \
+            --output=appstore/source.json \
+            --version="${{ steps.settings.outputs.marketing_version }}" \
+            --build-version="${{ steps.settings.outputs.build_version }}" \
+            --date="${{ steps.release.outputs.published_at }}" \
+            --notes="${{ steps.release.outputs.body }}" \
+            --download-url="${{ steps.asset.outputs.download_url }}" \
+            --size-bytes="${{ steps.asset.outputs.size }}" \
+            --min-os-version="${{ steps.settings.outputs.min_os_version }}"
+
+      - name: Commit and push source.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add appstore/source.json
+          if git diff --cached --quiet; then
+            echo "No changes to publish"
+            exit 0
+          fi
+          git commit -m "Publish ${{ steps.release.outputs.tag_name }} to appstore/source.json"
+          git push origin HEAD:main

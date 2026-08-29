@@ -178,8 +178,8 @@
      needed at that point. */
   #bg-toggle {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
   z-index: 30;
   background: rgba(20, 12, 8, 0.75);
   border: 1px solid rgba(255,255,255,0.12);
@@ -200,8 +200,8 @@
      pattern, positioned top-left (mirrors #github-flap, top-right) */
   #sf-toggle {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: max(14px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
   z-index: 30;
   background: rgba(20, 12, 8, 0.75);
   border: 1px solid rgba(255,255,255,0.12);
@@ -225,8 +225,17 @@
      target, not just the visible diagonal strip. */
   #github-flap {
   position: absolute;
-  top: 0;
-  right: 0;
+  /* Was a literal top:0;right:0. On a physical device that's the
+     notch/Dynamic Island/system-gesture corner (see project's
+     UIRequiresFullScreen + viewport-fit=cover, no browser chrome to
+     push it clear) — the tap target ends up partly under the sensor
+     housing and partly in iOS's reserved Control Center swipe corner,
+     making it visually and physically hard to hit. env() falls back
+     to 0 with no safe area, so this is a no-op on non-notched
+     devices/desktop browsers; it only shifts the flap on devices that
+     need it. */
+  top: env(safe-area-inset-top, 0px);
+  right: env(safe-area-inset-right, 0px);
   z-index: 30;
   width: 84px;
   height: 84px;

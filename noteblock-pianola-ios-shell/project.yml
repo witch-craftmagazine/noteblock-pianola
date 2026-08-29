@@ -22,13 +22,20 @@ targets:
   NoteblockPianola:
     type: application
     platform: iOS
+    preBuildScripts:
+      - name: "Sync web/ from the site (bun run build + restage)"
+        script: |
+          "$SRCROOT/scripts/sync-web.sh"
+        basedOnDependencyAnalysis: false
     sources:
       - path: Sources
-      # `web/` is staged by CI (see .github/workflows/ios-build.yml)
-      # from the web app's own `bun run build` output. It is
-      # gitignored here — CI always regenerates it before `xcodegen
-      # generate` runs, so a stale local copy never gets committed
-      # by accident. See README.md for building it locally too.
+      # `web/` is staged by scripts/sync-web.sh, which now runs
+      # automatically as the preBuildScripts phase above on every
+      # single Xcode build — not just in CI. It is gitignored here;
+      # there is no longer a way to build this target from Xcode
+      # against a stale `web/`, since it's regenerated immediately
+      # before every build. See README.md if you need to stage it by
+      # hand outside of Xcode (e.g. before a headless `xcodebuild`).
       #
       # `type: folder` is required, not cosmetic: without it XcodeGen
       # adds every file under web/ individually to Copy Bundle
@@ -49,6 +56,10 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: com.witchcraftmagazine.noteblockpianola
       CODE_SIGN_STYLE: Automatic
       CODE_SIGN_ENTITLEMENTS: Sources/NoteblockPianola.entitlements
+      # Points Xcode at Sources/Assets.xcassets/AppIcon.appiconset. Without
+      # this, ASSETCATALOG_COMPILER_APPICON_NAME defaults to unset and the
+      # app ships with no icon (blank/placeholder icon on the home screen).
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
       path: Sources/Info.plist
       properties:
