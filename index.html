@@ -63,6 +63,15 @@
      via the #bg-toggle button (top-right, mirrors #sf-toggle). -->
 <canvas id="bg-canvas"></canvas>
 
+<!-- Flow background canvas (src/musicbox/flow-background.js). Painted
+     every frame while active, so it sits in DOM order right after
+     #bg-canvas — same z-index (-1, see styles.css), later in DOM order
+     wins the stack, so it fully occludes the static per-song background
+     without needing to touch #bg-canvas's own toggle/rendering at all.
+     Hidden/paused unless the user picks the skeuomorphic style via
+     #style-toggle. -->
+<canvas id="flow-canvas"></canvas>
+
 <div id="canvas-container">
   <canvas id="three-canvas"></canvas>
 
@@ -128,6 +137,11 @@
      generated, per-song background in src/musicbox/bg-toggle.js.
      Off by default (see #bg-canvas above). -->
 <button id="bg-toggle" title="Toggle dynamic background">⬜ BG</button>
+
+<!-- Style switch: current flat/dark controls vs. the new animated Flow
+     background + skeuomorphic Braun-radio-style controls. See
+     src/musicbox/style-toggle.js and src/musicbox/flow-background.js. -->
+<button id="style-toggle" title="Switch control panel style">🎛 Flat</button>
 
 <!-- Three.js scene (camera, GLB, crank/lid animation, note particles, bg toggle) -->
 <!-- Bundled from src/musicbox/ via `bun run build` -- see package.json -->

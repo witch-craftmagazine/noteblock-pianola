@@ -78,6 +78,13 @@ targets:
         UIStatusBarHidden: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UIApplicationShortcutItems:
+          - UIApplicationShortcutItemType: com.witchcraftmagazine.noteblockpianola.shuffle
+            UIApplicationShortcutItemTitle: Shuffle
+            UIApplicationShortcutItemIconType: UIApplicationShortcutIconTypePlay
+          - UIApplicationShortcutItemType: com.witchcraftmagazine.noteblockpianola.resume
+            UIApplicationShortcutItemTitle: Resume Last Song
+            UIApplicationShortcutItemIconType: UIApplicationShortcutIconTypePlay
         # Background audio: lets the crank/playback survive screen
         # lock and app backgrounding. Paired with the AVAudioSession
         # .playback category set in AppDelegate. Verify on-device

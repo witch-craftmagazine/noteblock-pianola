@@ -318,6 +318,7 @@ const clock = new THREE.Clock();
 
 function animate() {
   requestAnimationFrame(animate);
+  if (document.hidden) return;
   const delta = clock.getDelta();
   // While the user is manually scrubbing the crank, pass 0 so the mixer
   // renders the current pose without advancing time and overwriting action.time.
@@ -541,21 +542,22 @@ window._registerLidMeshes = function(root) {
 // ─────────────────────────────────────────────
 //  MUSIC CALLBACKS — Goal 3: Lid + crank sync
 // ─────────────────────────────────────────────
-window.onMusicPlay = () => {
-
+const _prevScenePlay = window.onMusicPlay;
+window.onMusicPlay = (songFile) => {
   // Open the lid if it isn't already (animation runs in parallel with music + crank).
   if (!lidOpen) {
-  lidOpen = true;
-  window.musicBoxAnimations.play('open');
+    lidOpen = true;
+    window.musicBoxAnimations.play('open');
   }
 
   // Start crank immediately — don't wait for the lid animation to finish.
   // Music and crank are tightly coupled; the lid opening is a parallel flourish.
   window.musicBoxAnimations.setCrankSpinning(true);
+  if (_prevScenePlay) _prevScenePlay(songFile);
 };
 
-window.onMusicPause = () => {
-
+const _prevScenePause = window.onMusicPause;
+window.onMusicPause = (songFile) => {
   // #2: Stop the crank spinning animation but leave it at its current pose
   // by pausing instead of stopping, so the handle stays put visually.
   const crank = window.musicBoxAnimations.crank_spin;
@@ -565,18 +567,21 @@ window.onMusicPause = () => {
 
   // Close lid (if open or mid-open — play('close') handles the queue guard internally).
   if (lidOpen) {
-  window.musicBoxAnimations.play('close');
-  lidOpen = false;
+    window.musicBoxAnimations.play('close');
+    lidOpen = false;
   }
+  if (_prevScenePause) _prevScenePause(songFile);
 };
 
 // Bug #5: handled in script.js — song end now always autoplays next track.
 // onMusicEnd resets local wind state so the crank is ready for the next song.
-window.onMusicEnd = () => {
+const _prevSceneEnd = window.onMusicEnd;
+window.onMusicEnd = (songFile) => {
   windAccum = 0;
   hasPlayed = false;
   // Stop crank so it restarts cleanly when next song's onMusicPlay fires
   window.musicBoxAnimations.setCrankSpinning(false);
+  if (_prevSceneEnd) _prevSceneEnd(songFile);
 };
 
 // ─────────────────────────────────────────────

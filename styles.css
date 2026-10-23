@@ -3,6 +3,8 @@
   body {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
   overflow: hidden;
   background: #1a1a2e;
   transition: background 0.5s ease;
@@ -22,8 +24,23 @@
   inset: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   z-index: -1;          /* behind #canvas-container's normal-flow content */
   pointer-events: none; /* purely decorative, never intercepts input */
+  }
+
+  /* Same layer as #bg-canvas (see index.html comment on DOM order) —
+     opaque every frame while active, occluding #bg-canvas underneath
+     without needing to coordinate with its own on/off state. */
+  #flow-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: -1;
+  pointer-events: none;
+  display: none; /* toggled by style-toggle.js */
   }
 
   #canvas-container {
@@ -225,6 +242,30 @@
   }
   #sf-toggle:hover { background: rgba(255,255,255,0.12); }
   #sf-toggle.active { background: rgba(255,255,255,0.14); border-color: rgba(200,168,90,0.5); }
+
+  /* Style switch — stacked below #sf-toggle on the left, same corner-
+     button chrome regardless of which panel style is currently active
+     (this button's own look never changes; only its label/.active do). */
+  #style-toggle {
+  position: absolute;
+  top: calc(max(14px, env(safe-area-inset-top)) + 40px);
+  left: max(14px, env(safe-area-inset-left));
+  z-index: 30;
+  background: rgba(20, 12, 8, 0.75);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #e8d5a3;
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  padding: 6px 12px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s;
+  user-select: none;
+  }
+  #style-toggle:hover { background: rgba(255,255,255,0.12); }
+  #style-toggle.active { background: rgba(255,255,255,0.14); border-color: rgba(200,168,90,0.5); }
 
   /* GitHub source flap — replaces #bg-toggle's old top-right slot.
      Classic folded-corner ribbon: a square clipped box with a wider

@@ -62,7 +62,11 @@ final class NowPlayingBridge: NSObject {
 
     override init() {
         super.init()
-        if let icon = UIImage(named: "AppIcon") ?? UIImage(systemName: "pianoforte") {
+        if let icon = UIImage(named: "AppIcon")
+            ?? UIImage(named: "icon-1024")
+            ?? UIImage(contentsOfFile: Bundle.main.bundlePath + "/AppIcon60x60@2x.png")
+            ?? UIImage(systemName: "pianokeys")
+            ?? UIImage(systemName: "music.note") {
             artworkImage = MPMediaItemArtwork(boundsSize: icon.size) { _ in icon }
         }
         configureRemoteCommands()
@@ -85,24 +89,48 @@ final class NowPlayingBridge: NSObject {
               });
             } catch (e) {}
           }
-          window.onMusicPlay = function () { post('play'); };
-          window.onMusicPause = function () { post('pause'); };
-          window.onMusicEnd = function () { post('end'); };
+          var _prevPlay = window.onMusicPlay;
+          var _prevPause = window.onMusicPause;
+          var _prevEnd = window.onMusicEnd;
+          window.onMusicPlay = function (songFile) {
+            post('play');
+            if (_prevPlay) _prevPlay(songFile);
+          };
+          window.onMusicPause = function (songFile) {
+            post('pause');
+            if (_prevPause) _prevPause(songFile);
+          };
+          window.onMusicEnd = function (songFile) {
+            post('end');
+            if (_prevEnd) _prevEnd(songFile);
+          };
           // src/musicbox/scene.js calls this once per completed crank
           // wind-up (not per drag tick) — reuses the same message
           // handler/payload shape rather than a second bridge class.
-          window.onCrankTurn = function () { post('crank'); };
+          var _prevCrankTurn = window.onCrankTurn;
+          window.onCrankTurn = function () {
+            post('crank');
+            if (_prevCrankTurn) _prevCrankTurn();
+          };
           // Fires repeatedly while dragging the crank, once per ratchet
           // "notch" (see CONFIG.CRANK_NOTCHES_PER_REV in scene.js) —
           // distinct from onCrankTurn above, which fires once when
           // enough winding has accumulated to actually start playback.
-          window.onCrankNotch = function () { post('cranknotch'); };
+          var _prevCrankNotch = window.onCrankNotch;
+          window.onCrankNotch = function () {
+            post('cranknotch');
+            if (_prevCrankNotch) _prevCrankNotch();
+          };
           // Generic "a UI button was tapped" signal, called explicitly
           // by script.js at button handlers that don't already imply a
           // playback/track-state change (browse, share, sort, upload,
           // and the 3D lid) — see notifyUiTap() in script.js for why
           // play/prev/next/shuffle deliberately don't also call this.
-          window.onUiButtonTap = function () { post('uitap'); };
+          var _prevUiTap = window.onUiButtonTap;
+          window.onUiButtonTap = function () {
+            post('uitap');
+            if (_prevUiTap) _prevUiTap();
+          };
         })();
         """
         let script = WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true)

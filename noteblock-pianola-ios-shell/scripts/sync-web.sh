@@ -41,5 +41,5 @@ rsync -a --delete --exclude node_modules --exclude .git --exclude 'song/' \
   --exclude 'ios-app-plan.md' --exclude 'noteblock-docs.md' \
   --exclude 'EXCLUDED_FROM_THIS_ZIP.md' --exclude '.gitignore' \
   --exclude '.DS_Store' --exclude 'README.md' --exclude 'NOTICE' \
-  --exclude 'LICENSE*' \
+  --exclude 'LICENSE*' --exclude 'background.webp' \
   ./ noteblock-pianola-ios-shell/web/
