@@ -81,7 +81,7 @@ private final class LocalWebSchemeHandler: NSObject, WKURLSchemeHandler {
         case "html": return "text/html; charset=utf-8"
         case "js", "mjs": return "application/javascript; charset=utf-8"
         case "css": return "text/css; charset=utf-8"
-        case "json": return "application/json; charset=utf-8"
+        case "json", "map": return "application/json; charset=utf-8"
         case "glb": return "model/gltf-binary"
         case "sf2": return "application/octet-stream"
         case "sf3": return "application/octet-stream" // SF3 = SF2 container w/ Vorbis-compressed samples; no registered MIME type either
@@ -90,6 +90,10 @@ private final class LocalWebSchemeHandler: NSObject, WKURLSchemeHandler {
         case "webp": return "image/webp"
         case "svg": return "image/svg+xml"
         case "ico": return "image/x-icon"
+        case "ogg": return "audio/ogg"
+        case "mp3": return "audio/mpeg"
+        case "wav": return "audio/wav"
+        case "m4a": return "audio/mp4"
         default: return "application/octet-stream"
         }
     }

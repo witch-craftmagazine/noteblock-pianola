@@ -235,31 +235,33 @@ let ui = {};
 function buildUI() {
   const panel = document.createElement('div');
   panel.id = 'music-player';
+  panel.setAttribute('role', 'region');
+  panel.setAttribute('aria-label', 'Music Player');
   panel.innerHTML = `
-    <div id="mp-track-name">♪ Select a track</div>
+    <div id="mp-track-name" aria-live="polite">♪ Select a track</div>
     <div id="mp-controls">
-      <button id="mp-prev"    title="Previous">&#9664;&#9664;</button>
-      <button id="mp-play"    title="Play / Pause">&#9654;</button>
-      <button id="mp-next"    title="Next">&#9654;&#9654;</button>
-      <button id="mp-shuffle" title="Shuffle">?</button>
+      <button id="mp-prev"    title="Previous" aria-label="Previous track">&#9664;&#9664;</button>
+      <button id="mp-play"    title="Play / Pause" aria-label="Play or pause">&#9654;</button>
+      <button id="mp-next"    title="Next" aria-label="Next track">&#9654;&#9654;</button>
+      <button id="mp-shuffle" title="Shuffle" aria-label="Shuffle track">?</button>
     </div>
     <div id="mp-seek-row">
       <span id="mp-time-cur">0:00</span>
-      <input id="mp-seek" type="range" min="0" max="1000" value="0" step="1"/>
+      <input id="mp-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Track progress"/>
       <span id="mp-time-total">0:00</span>
     </div>
     <div id="mp-vol-row">
-      <span id="mp-vol-icon">♪</span>
-      <input id="mp-vol" type="range" min="0" max="1" value="${pendingSlider}" step="0.01"/>
+      <span id="mp-vol-icon" aria-hidden="true">♪</span>
+      <input id="mp-vol" type="range" min="0" max="1" value="${pendingSlider}" step="0.01" aria-label="Master volume"/>
     </div>
     <div id="mp-list-row">
-      <button id="mp-browse-btn" title="Browse songs">🎵 Browse</button>
-      <button id="mp-share-btn" title="Copy a shareable link (with preview)">🔗</button>
-      <label id="mp-upload-btn" title="Play your own MIDI file" tabindex="0">↑
+      <button id="mp-browse-btn" title="Browse songs" aria-label="Browse all songs">🎵 Browse</button>
+      <button id="mp-share-btn" title="Copy a shareable link (with preview)" aria-label="Share song link">🔗</button>
+      <label id="mp-upload-btn" title="Play your own MIDI file" aria-label="Upload MIDI file" tabindex="0">↑
         <input id="mp-file" type="file" accept=".mid,.midi" style="display:none"/>
       </label>
     </div>
-    <div id="mp-status">Loading soundfont…</div>
+    <div id="mp-status" aria-live="polite">Loading soundfont…</div>
   `;
   document.body.appendChild(panel);
 
@@ -530,6 +532,195 @@ function buildUI() {
       font-size: 12px;
       opacity: 0.5;
     }
+
+    /* ── Skeuomorphic / Braun-radio style variant ──────────────────
+       Applied only when body[data-ui-style="skeu"] (see
+       src/musicbox/style-toggle.js). Warm cream/putty plastic, warm-
+       brown shadows (not black — a black shadow under a light color
+       reads as a dark-mode invert, not a different material), dark
+       warm-ink text, and one muted terracotta accent standing in for
+       a Braun dial pointer / power LED. Ported from the approved
+       preview (flow-and-buttons-preview-v2.html) onto the real
+       #music-player/#mp-browse-* markup rather than mockup content. */
+    body[data-ui-style="skeu"] {
+      --cream-hi: #f6f1e4;
+      --cream-lo: #e2d8c3;
+      --cream-deep: #cabfa3;
+      --ink: #4a4335;
+      --ink-soft: rgba(74,67,53,0.6);
+      --primary: #b5502e;
+    }
+    body[data-ui-style="skeu"] #music-player {
+      background: rgba(238,231,213,0.88);
+      border: 1px solid rgba(120,105,80,0.25);
+      box-shadow: 0 8px 24px rgba(30,25,15,0.35);
+    }
+    body[data-ui-style="skeu"] #mp-track-name,
+    body[data-ui-style="skeu"] #mp-status { color: var(--ink); }
+    body[data-ui-style="skeu"] #mp-time-cur,
+    body[data-ui-style="skeu"] #mp-time-total,
+    body[data-ui-style="skeu"] #mp-vol-icon { color: var(--ink-soft); }
+    body[data-ui-style="skeu"] #mp-controls button,
+    body[data-ui-style="skeu"] #mp-browse-btn,
+    body[data-ui-style="skeu"] #mp-share-btn,
+    body[data-ui-style="skeu"] #mp-upload-btn,
+    body[data-ui-style="skeu"] .mp-sort-btn,
+    body[data-ui-style="skeu"] #mp-browse-close {
+      background: linear-gradient(145deg, var(--cream-hi), var(--cream-lo));
+      border: none;
+      color: var(--ink);
+      box-shadow:
+        inset 1px 1px 1px rgba(255,255,255,.8),
+        inset -1px -1px 1px rgba(120,105,80,.3),
+        2px 2px 4px rgba(60,50,35,.28),
+        -1px -1px 1px rgba(255,255,255,.35);
+      transition: box-shadow .15s ease, background .15s ease;
+    }
+    body[data-ui-style="skeu"] #mp-controls button:active,
+    body[data-ui-style="skeu"] #mp-browse-btn:active,
+    body[data-ui-style="skeu"] .mp-sort-btn.active {
+      background: linear-gradient(145deg, var(--cream-deep), var(--cream-hi));
+      box-shadow:
+        inset 2px 2px 3px rgba(60,50,35,.4),
+        inset -1px -1px 1px rgba(255,255,255,.6);
+    }
+    body[data-ui-style="skeu"] #mp-play { color: var(--primary); }
+    body[data-ui-style="skeu"] #mp-shuffle.active {
+      background: linear-gradient(145deg, var(--cream-deep), var(--cream-hi));
+      color: var(--primary);
+    }
+    /* LED radio-group indicator for the sort row — lights instead of
+       inverting the button's own color, per the mockup's .mode-led
+       pattern. .active is this app's existing selection class (see
+       ui.sortBtns' classList.toggle above); no new attribute needed. */
+    body[data-ui-style="skeu"] .mp-sort-btn {
+      flex-direction: column;
+      gap: 3px;
+      font-size: 9px;
+      padding: 5px 8px;
+    }
+    body[data-ui-style="skeu"] .mp-sort-btn .led {
+      display: block;
+      width: 6px;
+      height: 6px;
+      border-radius: 100%;
+      background-color: var(--cream-deep);
+      box-shadow: inset 1px 1px 2px rgba(60,45,25,.45), 0 1px 0 0 rgba(255,255,255,.6);
+      transition: background-color .15s ease;
+    }
+    body[data-ui-style="skeu"] .mp-sort-btn.active .led {
+      background: var(--primary);
+      box-shadow: 0 0 4px var(--primary);
+    }
+    body[data-ui-style="skeu"] #mp-seek,
+    body[data-ui-style="skeu"] #mp-vol {
+      appearance: none;
+      -webkit-appearance: none;
+      accent-color: unset;
+      height: 4px;
+      border-radius: 100px;
+      background: var(--cream-deep);
+      box-shadow: inset 0 1px 2px rgba(60,50,35,.4), 0 1px 0 0 rgba(255,255,255,.5);
+    }
+    body[data-ui-style="skeu"] #mp-seek::-webkit-slider-thumb,
+    body[data-ui-style="skeu"] #mp-vol::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 100%;
+      background: var(--cream-hi);
+      margin-top: -5px;
+      box-shadow:
+        inset 1px 1px 1px rgba(255,255,255,.9),
+        inset -1px -1px 0 rgba(120,105,80,.2),
+        1px 1px 2px -.75px rgba(60,50,35,.45),
+        2.5px 2.5px 4px -1.5px rgba(60,50,35,.35);
+    }
+    body[data-ui-style="skeu"] #mp-seek::-moz-range-thumb,
+    body[data-ui-style="skeu"] #mp-vol::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 100%;
+      border: none;
+      background: var(--cream-hi);
+      box-shadow:
+        inset 1px 1px 1px rgba(255,255,255,.9),
+        inset -1px -1px 0 rgba(120,105,80,.2),
+        1px 1px 2px -.75px rgba(60,50,35,.45),
+        2.5px 2.5px 4px -1.5px rgba(60,50,35,.35);
+    }
+    body[data-ui-style="skeu"] #mp-seek::-moz-range-track,
+    body[data-ui-style="skeu"] #mp-vol::-moz-range-track {
+      height: 4px;
+      border-radius: 100px;
+      background: var(--cream-deep);
+    }
+
+    /* ── Browse panel — brought into the same material/typography as
+       the transport bar above, not left as the original dark terminal
+       modal. See conversation: monospace everywhere was the actual
+       cause of the "half-restyled" look, more than any one element's
+       color — Braun/Rams typography is a humanist grotesque, not a
+       terminal face, so the skeu variant drops monospace entirely
+       rather than just recoloring boxes that still render in it. */
+    body[data-ui-style="skeu"] #mp-browse-panel,
+    body[data-ui-style="skeu"] #mp-search,
+    body[data-ui-style="skeu"] .mp-result-title,
+    body[data-ui-style="skeu"] .mp-result-meta,
+    body[data-ui-style="skeu"] #mp-no-results,
+    body[data-ui-style="skeu"] #mp-results-count {
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    }
+    body[data-ui-style="skeu"] #mp-browse-panel {
+      background: rgba(238,231,213,0.94);
+      border: 1px solid rgba(120,105,80,0.25);
+      box-shadow: 0 8px 24px rgba(30,25,15,0.35);
+      color: var(--ink);
+    }
+    /* Search field reads as a recessed dial slot, not a text-input
+       highlight box — same inset-groove language as the seek/volume
+       sliders, not a separate visual idiom. */
+    body[data-ui-style="skeu"] #mp-search {
+      background: var(--cream-deep);
+      border: none;
+      color: var(--ink);
+      box-shadow: inset 0 1px 3px rgba(60,50,35,.4), inset 0 -1px 0 rgba(255,255,255,.3);
+    }
+    body[data-ui-style="skeu"] #mp-search::placeholder { color: var(--ink-soft); }
+    /* A focus ring is a web-form idiom, not an instrument-panel one —
+       a soft inward glow reads more like a dial lighting up. */
+    body[data-ui-style="skeu"] #mp-search:focus {
+      outline: none;
+      box-shadow: inset 0 1px 3px rgba(60,50,35,.4), 0 0 0 2px rgba(181,80,46,.35);
+    }
+    body[data-ui-style="skeu"] #mp-results {
+      border-top: 1px solid rgba(120,105,80,.2);
+      scrollbar-color: var(--cream-deep) transparent; /* Firefox */
+    }
+    body[data-ui-style="skeu"] #mp-results::-webkit-scrollbar { width: 8px; }
+    body[data-ui-style="skeu"] #mp-results::-webkit-scrollbar-thumb {
+      background: var(--cream-deep);
+      border-radius: 100px;
+    }
+    body[data-ui-style="skeu"] #mp-results::-webkit-scrollbar-track { background: transparent; }
+    /* Thin warm hairlines, not stark white ones; no per-row card
+       boxing — this is a tabular index, not a stack of app cards. */
+    body[data-ui-style="skeu"] .mp-result-item {
+      border-bottom: 1px solid rgba(60,50,35,.12);
+      border-left: 3px solid transparent;
+      transition: background .12s ease, border-color .12s ease;
+    }
+    body[data-ui-style="skeu"] .mp-result-item:hover { background: rgba(120,105,80,.1); }
+    /* Currently-playing row: a terracotta accent edge, like a dial
+       pointer marking a station — not a full-row color wash. */
+    body[data-ui-style="skeu"] .mp-result-item.playing {
+      background: rgba(181,80,46,.08);
+      border-left-color: var(--primary);
+    }
+    body[data-ui-style="skeu"] .mp-result-meta,
+    body[data-ui-style="skeu"] #mp-results-count,
+    body[data-ui-style="skeu"] #mp-no-results { color: var(--ink-soft); }
   `;
   document.head.appendChild(style);
 
@@ -569,9 +760,9 @@ function buildBrowsePanel() {
       </div>
       <div id="mp-sort-row">
         <span>Sort</span>
-        <button class="mp-sort-btn" data-sort="title">Title</button>
-        <button class="mp-sort-btn" data-sort="artist">Artist</button>
-        <button class="mp-sort-btn" data-sort="year">Year</button>
+        <button class="mp-sort-btn" data-sort="title"><span class="led"></span>Title</button>
+        <button class="mp-sort-btn" data-sort="artist"><span class="led"></span>Artist</button>
+        <button class="mp-sort-btn" data-sort="year"><span class="led"></span>Year</button>
       </div>
       <div id="mp-results-count"></div>
       <div id="mp-results"></div>
@@ -590,7 +781,11 @@ function buildBrowsePanel() {
   ui.shareBtn.addEventListener('click', copyShareLink);
   ui.browseClose.addEventListener('click', () => { notifyUiTap(); closeBrowse(); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeBrowse(); });
-  ui.search.addEventListener('input', renderResults);
+  let searchDebounce = null;
+  ui.search.addEventListener('input', () => {
+    if (searchDebounce) clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(renderResults, 60);
+  });
   ui.sortBtns.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.sort === browseSort);
     btn.addEventListener('click', () => {
@@ -600,8 +795,73 @@ function buildBrowsePanel() {
       renderResults();
     });
   });
+
+  let lastNonZeroVolume = 0.8;
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && browseOpen) closeBrowse();
+    if (e.key === 'Escape' && browseOpen) {
+      closeBrowse();
+      return;
+    }
+
+    // Ignore player hotkeys when typing into an input/textarea
+    const target = e.target;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+      return;
+    }
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      playUiSound();
+      togglePlay();
+    } else if (e.code === 'ArrowLeft') {
+      e.preventDefault();
+      if (seq && seq.duration > 0) {
+        window.musicPlayer.seek(Math.max(0, (seq.currentTime || 0) - 5));
+      }
+    } else if (e.code === 'ArrowRight') {
+      e.preventDefault();
+      if (seq && seq.duration > 0) {
+        window.musicPlayer.seek(Math.min(seq.duration, (seq.currentTime || 0) + 5));
+      }
+    } else if (e.code === 'ArrowUp') {
+      e.preventDefault();
+      const nextVol = Math.min(1, pendingSlider + 0.05);
+      ui.vol.value = nextVol;
+      setVolume(nextVol);
+    } else if (e.code === 'ArrowDown') {
+      e.preventDefault();
+      const nextVol = Math.max(0, pendingSlider - 0.05);
+      ui.vol.value = nextVol;
+      setVolume(nextVol);
+    } else if (e.code === 'KeyM') {
+      e.preventDefault();
+      if (pendingSlider > 0.01) {
+        lastNonZeroVolume = pendingSlider;
+        ui.vol.value = 0;
+        setVolume(0);
+      } else {
+        const restore = lastNonZeroVolume || 0.8;
+        ui.vol.value = restore;
+        setVolume(restore);
+      }
+    } else if (e.code === 'KeyN') {
+      e.preventDefault();
+      playUiSound();
+      nextTrack();
+    } else if (e.code === 'KeyP') {
+      e.preventDefault();
+      playUiSound();
+      prevTrack();
+    } else if (e.code === 'KeyS') {
+      e.preventDefault();
+      playUiSound();
+      shuffleTrack();
+    } else if (e.code === 'KeyB') {
+      e.preventDefault();
+      playUiSound();
+      notifyUiTap();
+      if (browseOpen) closeBrowse(); else openBrowse();
+    }
   });
 }
 
@@ -976,6 +1236,7 @@ async function init() {
 
   setStatus('Crank the box to play  ↻');
   setControlsEnabled(true);
+  initMediaSession();
   ready = true;
 }
 
@@ -1018,6 +1279,12 @@ async function ensureAudioContext() {
     } else {
       if (window._spawnNoteParticle) window._spawnNoteParticle(midiNote, velocity);
     }
+    // Flow background (src/musicbox/flow-background.js) — same noteOn
+    // callback, not a second addEvent registration, per the port doc's
+    // integration note. No-ops (and costs nothing beyond the property
+    // check) when the skeu style isn't active/flow-background hasn't
+    // loaded yet.
+    if (window._flowOnNote) window._flowOnNote(midiNote, velocity);
   });
 
   // P8: Insert a dynamics compressor between the synth and destination.
@@ -1063,6 +1330,7 @@ async function togglePlay() {
     playing = false;
     ui.play.innerHTML = '&#9654;';
     setStatus('Paused');
+    syncMediaSessionPlaybackState();
     console.log('[MusicPlayer] ⏸ PAUSE — track:', window._currentSong);
     window._currentSong = '';
     if (window.onMusicPause) window.onMusicPause();
@@ -1074,6 +1342,7 @@ async function togglePlay() {
     playing = true;
     ui.play.innerHTML = '&#9646;&#9646;';
     setStatus('Playing');
+    syncMediaSessionPlaybackState();
     if (!window._currentSong) {
       window._currentSong = (tracks[current] || '').split('/').pop();
     }
@@ -1118,6 +1387,7 @@ async function loadTrack(index, autoPlay = true) {
       playing = true;
       ui.play.innerHTML = '&#9646;&#9646;';
       setStatus('Playing');
+      syncMediaSessionPlaybackState();
       const currentTrackPath = tracks[index];
       console.log('[MusicPlayer] ▶ PLAY (loadTrack) — index:', index, '| path:', currentTrackPath);
       window._currentSong = currentTrackPath?.split('/').pop() || '';
@@ -1160,6 +1430,49 @@ function setVolume(sliderVal) {
   applyMasterGain();
 }
 
+// ─────────────────────────────────────────────────────────────────
+//  WEB MEDIA SESSION API (Lock screen, notifications & media keys)
+// ─────────────────────────────────────────────────────────────────
+function updateMediaSession(meta) {
+  if (!('mediaSession' in navigator)) return;
+  const title = (meta && meta.title) || (tracks[current] ? friendlyName(tracks[current]) : 'Noteblock Pianola');
+  const artist = (meta && meta.artist) || 'Minecraft Music Box';
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist,
+      album: 'Noteblock Pianola',
+      artwork: [
+        { src: './musicbox.webp', sizes: '2000x1138', type: 'image/webp' },
+        { src: './noteblock.png', sizes: '512x512', type: 'image/png' }
+      ]
+    });
+  } catch (e) { /* non-fatal */ }
+}
+
+function syncMediaSessionPlaybackState() {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+  } catch (e) { /* non-fatal */ }
+}
+
+function initMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  const setHandler = (action, handler) => {
+    try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) { /* action unsupported */ }
+  };
+  setHandler('play', () => { if (!playing) togglePlay(); });
+  setHandler('pause', () => { if (playing) togglePlay(); });
+  setHandler('previoustrack', () => prevTrack());
+  setHandler('nexttrack', () => nextTrack());
+  setHandler('seekto', (details) => {
+    if (details.seekTime != null && window.musicPlayer && window.musicPlayer.seek) {
+      window.musicPlayer.seek(details.seekTime);
+    }
+  });
+}
+
 function updateTrackName(index) {
   ui.trackName.textContent = '♪  ' + friendlyName(tracks[index]);
 
@@ -1171,6 +1484,7 @@ function updateTrackName(index) {
       detail: { title: meta.title, artist: meta.artist, year: meta.year }
     }));
   }
+  updateMediaSession(meta);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1225,6 +1539,7 @@ async function handleUpload() {
     // background instead of leaving it stuck on the last library track.
     const uploadMeta = parseMeta(file.name);
     window.dispatchEvent(new CustomEvent('track:changed', { detail: uploadMeta }));
+    updateMediaSession(uploadMeta);
 
     // Stamp _currentSong with the filename (without extension) so easter
     // egg triggers still work — e.g. uploading i_feel_pretty_1957_-_bernstein.mid
@@ -1241,6 +1556,7 @@ async function handleUpload() {
     playing = true;
     ui.play.innerHTML = '&#9646;&#9646;';
     setStatus('Playing uploaded file');
+    syncMediaSessionPlaybackState();
     if (window.onMusicPlay) window.onMusicPlay();
     startSeekLoop();
   } catch (e) {
@@ -1266,6 +1582,7 @@ function startSeekLoop() {
       playing = false;
       ui.play.innerHTML = '&#9654;';
       seekLoopRunning = false;
+      syncMediaSessionPlaybackState();
       console.log('[MusicPlayer] ⏹ SONG END — finished:', tracks[current]);
       if (window.onMusicEnd) window.onMusicEnd();
       const idx = (current + 1) % tracks.length;
@@ -1282,6 +1599,16 @@ function startSeekLoop() {
         ui.seek.value            = Math.round(progress * 1000);
         ui.timeCur.textContent   = formatTime(cur);
         ui.timeTotal.textContent = formatTime(total);
+
+        if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+          try {
+            navigator.mediaSession.setPositionState({
+              duration: total,
+              playbackRate: 1,
+              position: Math.min(cur, total)
+            });
+          } catch (e) { /* non-fatal, e.g. state out of bounds */ }
+        }
       }
     }
 

@@ -5,6 +5,7 @@
 # they're referenced from here.
 /noteblock-pianola-ios-shell/web/
 /claude-upload.zip
+/background.webp
 *.xcodeproj/
 
 # General

@@ -141,6 +141,7 @@
       wobble   : Math.random() * Math.PI * 2,
       wobbleAmp: 0.4 + Math.random() * 0.6,
     });
+    ensureTickRunning();
   }
 
   // ── Cannon explosion particles ────────────────────────────────────
@@ -170,6 +171,7 @@
       rotation : Math.random() * Math.PI * 2,
       spin     : (Math.random() - 0.5) * 0.3,
     });
+    ensureTickRunning();
   }
 
   function spawnSmokePuff(x, y, velT) {
@@ -183,6 +185,7 @@
       alpha    : 0.35 + velT * 0.15,
       fadeRate : 0.008 + Math.random() * 0.006, // lingers after debris fades
     });
+    ensureTickRunning();
   }
 
   function countByKind(kind) {
@@ -265,10 +268,25 @@
   }
 
   let lastTime = null;
+  let rafId    = null;
   const MAX_DT = 50; // ms — clamp so a slow/backgrounded frame can't fling particles
 
+  function ensureTickRunning() {
+    if (!rafId) {
+      lastTime = null;
+      rafId = requestAnimationFrame(tickNotes);
+    }
+  }
+
   function tickNotes(timestamp) {
-    requestAnimationFrame(tickNotes);
+    if (particles.length === 0) {
+      ctx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
+      rafId = null;
+      return;
+    }
+
+    rafId = requestAnimationFrame(tickNotes);
+    if (document.hidden) return;
 
     let dt = lastTime ? timestamp - lastTime : 16;
     dt = Math.min(dt, MAX_DT);
@@ -326,7 +344,11 @@
     ctx.restore();
   }
 
-  requestAnimationFrame(tickNotes);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && particles.length > 0) {
+      ensureTickRunning();
+    }
+  });
 
   // ── Music callback chain ────────────────────────────────────────
   const _origPlay  = window.onMusicPlay;
