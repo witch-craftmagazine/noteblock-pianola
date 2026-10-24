@@ -10,7 +10,7 @@
 #   4. generate-share-pages.js — regenerates per-song OG preview pages
 #   5. analyze-loudness.js     — updates volumeAdjustments.json (incremental)
 #   6. Auto-commits all changed files back to main
-#   7. static.yml picks up the commit and deploys to GitHub Pages
+#   7. deploy-pages invokes static.yml to deploy updated files to GitHub Pages
 
 name: Update midilist and share pages
 
@@ -29,6 +29,8 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    outputs:
+      changes_detected: ${{ steps.auto_commit.outputs.changes_detected }}
 
     steps:
       - name: Checkout repository
@@ -66,9 +68,20 @@ jobs:
         run: node tools/analyze-loudness.js
 
       - name: Commit updated files
+        id: auto_commit
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update midilist, share pages, loudness"
           file_pattern: "midilist.json midi/** song/** volumeAdjustments.json"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: update
+    if: always() && needs.update.result == 'success' && needs.update.outputs.changes_detected == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/static.yml

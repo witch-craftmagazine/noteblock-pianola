@@ -86,17 +86,13 @@ def main():
         bundle_id = app["bundleIdentifier"]
         prior_versions = existing_versions_by_app(existing, bundle_id)
 
-        # De-dupe: if this exact version+buildVersion was already published
-        # (e.g. re-running publish-source on a `release: edited` event to
-        # pick up hand-edited notes, without a rebuild), replace that entry
-        # in place instead of prepending a duplicate.
+        # De-dupe: if this version was already published (e.g. re-running
+        # publish-source on a `release: edited` event to pick up hand-edited notes,
+        # without a rebuild), replace that entry in place instead of prepending a duplicate.
         prior_versions = [
             v
             for v in prior_versions
-            if not (
-                v.get("version") == new_version_entry["version"]
-                and v.get("buildVersion") == new_version_entry["buildVersion"]
-            )
+            if v.get("version") != new_version_entry["version"]
         ]
 
         app["versions"] = [new_version_entry] + prior_versions
