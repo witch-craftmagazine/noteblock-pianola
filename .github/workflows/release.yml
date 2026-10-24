@@ -8,9 +8,10 @@ name: Release IPA and Publish AltStore Source
 #     already published source.json still reaches the AltStore source.
 #
 # Unlike Nectar, this repo does NOT keep a separate gh-pages branch --
-# static.yml deploys the whole repo (path: '.') from main on every push,
-# so publish-source here commits appstore/source.json straight back to
-# main instead of merging into a gh-pages checkout.
+# static.yml deploys the whole repo (path: '.') from main. Because pushes
+# made by GITHUB_TOKEN do not trigger other workflows, release.yml
+# finishes by invoking static.yml via workflow_call to deploy the fresh
+# appstore/source.json directly to GitHub Pages.
 on:
   workflow_dispatch:
     inputs:
@@ -31,6 +32,9 @@ jobs:
     runs-on: macos-26
     outputs:
       tag: ${{ inputs.tag }}
+      marketing_version: ${{ steps.archive.outputs.marketing_version }}
+      build_version: ${{ steps.archive.outputs.build_version }}
+      min_os_version: ${{ steps.archive.outputs.min_os_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,6 +75,7 @@ jobs:
         run: xcodegen generate
 
       - name: Archive (unsigned)
+        id: archive
         shell: bash
         working-directory: noteblock-pianola-ios-shell
         run: |
@@ -92,6 +97,16 @@ jobs:
 
           marketing_version="${{ inputs.tag }}"
           marketing_version="${marketing_version#v}"
+
+          min_os_version=$(xcodebuild -showBuildSettings \
+            -project NoteblockPianola.xcodeproj \
+            -scheme NoteblockPianola \
+            -destination "generic/platform=iOS" \
+            | grep -m1 '^\s*IPHONEOS_DEPLOYMENT_TARGET' | awk -F'= ' '{print $2}')
+
+          echo "marketing_version=$marketing_version" >> "$GITHUB_OUTPUT"
+          echo "build_version=$build_version" >> "$GITHUB_OUTPUT"
+          echo "min_os_version=$min_os_version" >> "$GITHUB_OUTPUT"
 
           set -o pipefail
           xcodebuild \
@@ -166,7 +181,9 @@ jobs:
     # build-ipa-release's own `if` only allows workflow_dispatch, while a
     # workflow_dispatch run still won't proceed past a failed build.
     if: always() && (github.event_name == 'release' || needs.build-ipa-release.result == 'success')
-    runs-on: macos-26
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.commit.outputs.published }}
     steps:
       - name: Resolve release
         id: release
@@ -203,55 +220,37 @@ jobs:
           # appstore/ on main.
           ref: main
 
-      - name: Select Xcode 26.3
-        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
-
-      - uses: oven-sh/setup-bun@v2
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Build the web app and stage web/
-        run: |
-          bun install --frozen-lockfile
-          bun run build
-          mkdir -p noteblock-pianola-ios-shell/web
-          rsync -a \
-            --exclude 'node_modules' \
-            --exclude '.git' \
-            --exclude 'song/' \
-            --exclude 'noteblock-pianola-ios-shell/' \
-            ./ noteblock-pianola-ios-shell/web/
-
-      - name: Generate Xcode project
-        working-directory: noteblock-pianola-ios-shell
-        run: xcodegen generate
-
-      - name: Read build settings
-        id: settings
-        working-directory: noteblock-pianola-ios-shell
+      - name: Resolve version info
+        id: version_info
         shell: bash
         run: |
           set -euo pipefail
 
-          tag_name="${{ steps.release.outputs.tag_name }}"
-          marketing_version_override="${tag_name#v}"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag_name="${{ steps.release.outputs.tag_name }}"
+            marketing_version="${tag_name#v}"
+            min_os_version="15.0"
 
-          settings=$(xcodebuild -showBuildSettings \
-            -project NoteblockPianola.xcodeproj \
-            -scheme NoteblockPianola \
-            -destination "generic/platform=iOS" \
-            MARKETING_VERSION="$marketing_version_override" 2>xcodebuild-showbuildsettings.log) || {
-            echo "::error::xcodebuild -showBuildSettings failed. stderr was:"
-            cat xcodebuild-showbuildsettings.log
-            exit 1
-          }
+            # For an edited release, read the existing buildVersion already recorded
+            # in source.json for this marketing version so we don't mint a new build
+            # version that disagrees with the previously packaged IPA.
+            existing_bv=""
+            if [ -f appstore/source.json ]; then
+              existing_bv=$(jq -r --arg v "$marketing_version" '
+                .apps[]? | .versions[]? | select(.version == $v) | .buildVersion
+              ' appstore/source.json | head -n1)
+            fi
 
-          marketing_version=$(echo "$settings" | grep -m1 '^\s*MARKETING_VERSION' | awk -F'= ' '{print $2}')
-          current_project_version=$(echo "$settings" | grep -m1 '^\s*CURRENT_PROJECT_VERSION' | awk -F'= ' '{print $2}')
-          min_os_version=$(echo "$settings" | grep -m1 '^\s*IPHONEOS_DEPLOYMENT_TARGET' | awk -F'= ' '{print $2}')
-
-          build_version="${current_project_version}.${GITHUB_RUN_NUMBER}"
+            if [ -n "$existing_bv" ] && [ "$existing_bv" != "null" ]; then
+              build_version="$existing_bv"
+            else
+              build_version="1.${GITHUB_RUN_NUMBER}"
+            fi
+          else
+            marketing_version="${{ needs.build-ipa-release.outputs.marketing_version }}"
+            build_version="${{ needs.build-ipa-release.outputs.build_version }}"
+            min_os_version="${{ needs.build-ipa-release.outputs.min_os_version }}"
+          fi
 
           echo "marketing_version=$marketing_version" >> "$GITHUB_OUTPUT"
           echo "build_version=$build_version" >> "$GITHUB_OUTPUT"
@@ -301,15 +300,16 @@ jobs:
             --template=appstore/source.template.json \
             $existing_arg \
             --output=appstore/source.json \
-            --version="${{ steps.settings.outputs.marketing_version }}" \
-            --build-version="${{ steps.settings.outputs.build_version }}" \
+            --version="${{ steps.version_info.outputs.marketing_version }}" \
+            --build-version="${{ steps.version_info.outputs.build_version }}" \
             --date="${{ steps.release.outputs.published_at }}" \
             --notes="${{ steps.release.outputs.body }}" \
             --download-url="${{ steps.asset.outputs.download_url }}" \
             --size-bytes="${{ steps.asset.outputs.size }}" \
-            --min-os-version="${{ steps.settings.outputs.min_os_version }}"
+            --min-os-version="${{ steps.version_info.outputs.min_os_version }}"
 
       - name: Commit and push source.json
+        id: commit
         shell: bash
         run: |
           set -euo pipefail
@@ -318,7 +318,20 @@ jobs:
           git add appstore/source.json
           if git diff --cached --quiet; then
             echo "No changes to publish"
+            echo "published=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "Publish ${{ steps.release.outputs.tag_name }} to appstore/source.json"
+          git pull --rebase origin main
           git push origin HEAD:main
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: publish-source
+    if: always() && needs.publish-source.result == 'success'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/static.yml

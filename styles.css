@@ -27,11 +27,9 @@
   height: 100dvh;
   z-index: -1;          /* behind #canvas-container's normal-flow content */
   pointer-events: none; /* purely decorative, never intercepts input */
+  display: none;        /* toggled by theme-toggle.js */
   }
 
-  /* Same layer as #bg-canvas (see index.html comment on DOM order) —
-     opaque every frame while active, occluding #bg-canvas underneath
-     without needing to coordinate with its own on/off state. */
   #flow-canvas {
   position: fixed;
   inset: 0;
@@ -40,7 +38,7 @@
   height: 100dvh;
   z-index: -1;
   pointer-events: none;
-  display: none; /* toggled by style-toggle.js */
+  display: none;        /* toggled by theme-toggle.js */
   }
 
   #canvas-container {
@@ -196,30 +194,6 @@
   z-index: 5;
   }
 
-  /* Dynamic background toggle — same corner-button styling as #sf-toggle,
-     positioned top-right but dropped below #github-flap (which now owns
-     the very corner) so the two don't overlap. */
-  #bg-toggle {
-  position: absolute;
-  top: calc(max(14px, env(safe-area-inset-top)) + 76px);
-  right: max(14px, env(safe-area-inset-right));
-  z-index: 30;
-  background: rgba(20, 12, 8, 0.75);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 8px;
-  color: #e8d5a3;
-  font-family: monospace;
-  font-size: 11px;
-  letter-spacing: 0.07em;
-  padding: 6px 12px;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  transition: background 0.15s;
-  user-select: none;
-  }
-  #bg-toggle:hover { background: rgba(255,255,255,0.12); }
-  #bg-toggle.active { background: rgba(255,255,255,0.14); border-color: rgba(200,168,90,0.5); }
-
   /* Soundfont switcher button — visually matches the corner buttons/flap
      pattern, positioned top-left (mirrors #github-flap, top-right) */
   #sf-toggle {
@@ -243,10 +217,9 @@
   #sf-toggle:hover { background: rgba(255,255,255,0.12); }
   #sf-toggle.active { background: rgba(255,255,255,0.14); border-color: rgba(200,168,90,0.5); }
 
-  /* Style switch — stacked below #sf-toggle on the left, same corner-
-     button chrome regardless of which panel style is currently active
-     (this button's own look never changes; only its label/.active do). */
-  #style-toggle {
+  /* Theme switcher — cycles Dark Navy -> Procedural Blobs -> Skeuomorphic.
+     Stacked below #sf-toggle on the left. */
+  #theme-toggle {
   position: absolute;
   top: calc(max(14px, env(safe-area-inset-top)) + 40px);
   left: max(14px, env(safe-area-inset-left));
@@ -264,10 +237,10 @@
   transition: background 0.15s;
   user-select: none;
   }
-  #style-toggle:hover { background: rgba(255,255,255,0.12); }
-  #style-toggle.active { background: rgba(255,255,255,0.14); border-color: rgba(200,168,90,0.5); }
+  #theme-toggle:hover { background: rgba(255,255,255,0.12); }
+  #theme-toggle.active { background: rgba(255,255,255,0.14); border-color: rgba(200,168,90,0.5); }
 
-  /* GitHub source flap — replaces #bg-toggle's old top-right slot.
+  /* GitHub source flap — positioned top-right.
      Classic folded-corner ribbon: a square clipped box with a wider
      label strip rotated 45° through it. The whole square is the tap
      target, not just the visible diagonal strip. */
@@ -315,7 +288,6 @@
   @media (max-width: 480px) {
   #github-flap { width: 68px; height: 68px; }
   #github-flap-label { top: 14px; right: -22px; width: 96px; font-size: 10px; padding: 3px 0; }
-  #bg-toggle { top: calc(max(14px, env(safe-area-inset-top)) + 62px); }
   }
 
   /* ── Minecraft skip overlay ── */
