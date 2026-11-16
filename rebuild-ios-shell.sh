@@ -80,6 +80,8 @@ log "Verifying staged $WEB_DIR"
 
 [ -f "$WEB_DIR/index.html" ] || die "$WEB_DIR/index.html is missing after staging."
 [ -f "$WEB_DIR/dist/main.js" ] || die "$WEB_DIR/dist/main.js is missing — app will hang on the loading spinner under file://."
+[ -f "$WEB_DIR/dist/script.js" ] || die "$WEB_DIR/dist/script.js is missing — MIDI player bundle not built."
+[ -f "$WEB_DIR/dist/spessasynth_processor.min.js" ] || die "$WEB_DIR/dist/spessasynth_processor.min.js is missing — AudioWorklet processor not copied."
 
 if [ -d "$WEB_DIR/$SHELL_DIR" ]; then
   die "$WEB_DIR/$SHELL_DIR/ exists — the shell got staged into its own web/ folder. This script excludes it, so if you're seeing this, something upstream (a leftover directory?) is wrong. Re-run after 'rm -rf $WEB_DIR'."

@@ -28,9 +28,9 @@ There is also a second page, `no/index.html`, a horror-styled easter egg experie
 | `soundfonts/minecraft3.sf2` | Modified Minecraft soundfont (instruments transposed for music-box timbre); default entry in `soundfonts/manifest.json` |
 | `soundfonts/manifest.json` | List of switchable soundfonts (id/label/file) — fetched at runtime by `script.js` and `src/musicbox/soundfont-toggle.js` |
 | `#github-flap` (in `index.html`) | Corner ribbon linking to the GitHub repo — replaces the old `#bg-toggle` button in the top-right corner |
-| `lib/spessasynth_lib.js` | SpessaSynth audio library (Apache 2.0) |
-| `lib/spessasynth_core.js` | SpessaSynth core module (resolved via importmap) |
-| `lib/spessasynth_processor.min.js` | AudioWorklet processor loaded at runtime |
+| `dist/main.js` | Bundled Three.js scene and 3D musicbox controls |
+| `dist/script.js` | Bundled MIDI player UI and SpessaSynth audio engine |
+| `dist/spessasynth_processor.min.js` | AudioWorklet processor copied from `spessasynth_lib` package at build time |
 | `easter-eggs/registry.json` | Config list of all easter eggs (id, trigger, module path) |
 | `easter-eggs/egg-loader.js` | ES module: fetches registry, dynamically imports each egg |
 | `easter-eggs/minecraft/index.js` | "I Feel Pretty" egg: Minecraft player walks and transforms into Enderman |
@@ -70,16 +70,15 @@ There is also a second page, `no/index.html`, a horror-styled easter egg experie
 
 ## Architecture
 
-The app has no framework and no server, but does have a build step: `bun run build` bundles `src/musicbox/` (and its `three` import) into `dist/main.js`. Everything else runs straight from static files served by GitHub Pages.
+The app has no framework and no server, but does have a build step: `bun run build` bundles `src/musicbox/` (with `three`) into `dist/main.js`, bundles `script.js` (with `spessasynth_lib` and `spessasynth_core`) into `dist/script.js`, and copies the AudioWorklet processor into `dist/spessasynth_processor.min.js`. Everything else runs straight from static files served by GitHub Pages.
 
 ### Dependency loading order (index.html)
 
-1. **Importmap** — maps bare specifier `spessasynth_core` to `./lib/spessasynth_core.js`. Must appear before any `<script type="module">`.
-2. **`<script type="module" src="./dist/main.js">`** — the bundled `src/musicbox/` entry point. Load order inside the bundle (see `src/musicbox/main.js`): `scene.js` (Three.js scene, GLB loading, crank/lid animation, music callbacks — also sets `window.THREE`, see below) → `particles.js` (wraps the music callbacks) → `bg-toggle.js` (dormant, see its header comment) → `soundfont-toggle.js`.
-3. **`<script type="module" src="./script.js">`** — MIDI player.
-4. **`<script type="module" src="./easter-eggs/egg-loader.js">`** — Loads `registry.json` and dynamically imports each egg module.
+1. **`<script type="module" src="./dist/main.js">`** — the bundled `src/musicbox/` entry point. Load order inside the bundle (see `src/musicbox/main.js`): `scene.js` (Three.js scene, GLB loading, crank/lid animation, music callbacks — also sets `window.THREE`, see below) → `particles.js` (wraps the music callbacks) → `bg-toggle.js` (dormant, see its header comment) → `soundfont-toggle.js`.
+2. **`<script type="module" src="./dist/script.js">`** — Bundled MIDI player and SpessaSynth audio engine.
+3. **`<script type="module" src="./easter-eggs/egg-loader.js">`** — Loads `registry.json` and dynamically imports each egg module.
 
-There is no longer a CDN dependency for Three.js — it's an npm dependency (`three`, pinned in `package.json`) bundled by `bun run build`, same as the rest of `src/musicbox/`.
+Dependencies (`three`, `spessasynth_lib`, `spessasynth_core`) are managed via npm (`package.json`) and bundled by `bun run build`.
 
 ### Global communication pattern
 

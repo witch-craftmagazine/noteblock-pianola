@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { Sequencer, WorkletSynthesizer }
-from "./lib/spessasynth_lib.js";
+from "spessasynth_lib";
 
 const SOUNDFONTS_DIR      = './soundfonts/';
 const SOUNDFONTS_MANIFEST = './soundfonts/manifest.json';
@@ -20,7 +20,7 @@ const LAST_SONG_STORAGE_KEY = 'noteblock-pianola:lastSong';
 // used to be hardcoded here.
 const FALLBACK_SOUNDFONTS = [{ id: 'minecraft3', label: 'Minecraft', file: 'minecraft3.sf2' }];
 
-const WORKLET_PATH = './lib/spessasynth_processor.min.js';
+const WORKLET_PATH = './dist/spessasynth_processor.min.js';
 const LIST_PATH    = './midilist.json';
 const UI_SOUND_PATH = './sounds/click.ogg';
 const VOLUME_ADJUSTMENTS_PATH = './volumeAdjustments.json';

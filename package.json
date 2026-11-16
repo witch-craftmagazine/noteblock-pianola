@@ -6,13 +6,15 @@
   "type": "module",
   "scripts": {
     "dev": "bunx serve . -l 8080",
-    "build": "bun build ./src/musicbox/main.js --outdir ./dist --minify --sourcemap=linked",
+    "build": "bun build ./src/musicbox/main.js ./script.js --outdir ./dist --entry-naming=\"[name].[ext]\" --minify --sourcemap=linked && cp node_modules/spessasynth_lib/dist/spessasynth_processor.min.js ./dist/",
     "sync": "node tools/sync.js",
     "sync:full": "node tools/sync.js --full",
     "manifest:soundfonts": "node tools/generate-soundfont-manifest.js",
     "convert:soundfonts": "node tools/convert-sf2-to-sf3.js"
   },
   "dependencies": {
+    "spessasynth_core": "^4.4.10",
+    "spessasynth_lib": "^4.4.8",
     "three": "0.169.0"
   }
 }

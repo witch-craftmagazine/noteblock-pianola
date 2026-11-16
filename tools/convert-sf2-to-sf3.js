@@ -89,7 +89,6 @@ const REPO_ROOT  = path.join(__dirname, '..');
 
 const SOUNDFONTS_DIR = path.join(REPO_ROOT, 'soundfonts');
 const MANIFEST_PATH  = path.join(SOUNDFONTS_DIR, 'manifest.json');
-const CORE_LIB_PATH  = path.join(REPO_ROOT, 'lib', 'spessasynth_core.js');
 
 const args = process.argv.slice(2);
 const dryRun        = args.includes('--dry-run');
@@ -176,7 +175,7 @@ function humanSize(bytes) {
 async function main() {
   await checkFfmpeg();
 
-  const { SoundBankLoader } = await import(CORE_LIB_PATH);
+  const { SoundBankLoader } = await import('spessasynth_core');
 
   let targets;
   if (explicitFiles.length) {

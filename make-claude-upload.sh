@@ -42,7 +42,6 @@ rsync -a . "$STAGE"/ \
   --exclude '*.png' \
   --exclude '*.mp3' \
   --exclude '*.ogg' \
-  --exclude 'lib/spessasynth_processor.min.js' \
   --exclude 'noteblock-pianola-ios-shell/web' \
   --exclude 'claude-upload.zip'
 
@@ -118,8 +117,6 @@ these specifically if you need them read:
   what's in them (or flags that they're missing) without the bytes.
 - `node_modules/`
 - Binary assets: `*.glb`, `*.sf2`, `*.webp`, `*.png`, `*.mp3`, `*.ogg`
-- `lib/spessasynth_processor.min.js` (minified, not meant to be read;
-  `lib/spessasynth_core.js` and `lib/spessasynth_lib.js` ARE included)
 EOF
 
 ( cd "$STAGE" && zip -rq -X "$OLDPWD/$OUT" . )
