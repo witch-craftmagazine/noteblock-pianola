@@ -176,7 +176,10 @@ function getTrackGain(index) {
 // loudness correction. Call this any time either input changes
 // (slider moved, or a new track became current).
 function applyMasterGain() {
-  if (synth) synth.setMasterParameter("masterGain", sliderToGain(pendingSlider) * currentTrackGain);
+  // spessasynth_lib exposes the synthesizer's global output level through
+  // setSystemParameter("gain"). setMasterParameter was removed from the
+  // current API and throws during the first play attempt, preventing playback.
+  if (synth) synth.setSystemParameter("gain", sliderToGain(pendingSlider) * currentTrackGain);
 }
 
 // ── UI Sound ───────────────────────────────────────────────────────
